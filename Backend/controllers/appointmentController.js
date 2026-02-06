@@ -2,6 +2,7 @@ import { Appointment } from "../models/Appointment.js";
 import { mongoose } from "mongoose";
 import { doctor } from "../models/Doctor.js" ;
 import { calculateWaitingTime } from "../utils/waitingTime.js";
+import { idmMetric } from "../models/IDMMetric.js";
 
 export const bookAppointment = async (req, res) => {
   const {doctorId , date , timeSlot} = req.body ;
@@ -106,8 +107,21 @@ export const updateStatus = async (req ,res) => {
           status : {$in:["BOOKED" , "IN_PROGRESS"]} ,
           queueNumber : {$gt : oldQueueNumber}
         }, {
-          $inc : {queueNumber : -1}
-        }) ;
+          $inc : {queueNumber : -1} 
+        } ,
+        {session}
+      ) ;
+       
+        await idmMetric.create([{
+          metricName : "ConsultationCompleted" ,
+          category : "PROCESS" ,
+          value : 1 ,
+          context : {
+             doctorId : Appointment.doctorId ,
+             patientId : Appointment.patientId 
+          } 
+        }] , {session}) ;
+        
       }
 
       await session.commitTransaction() ;
