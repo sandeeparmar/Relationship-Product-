@@ -12,6 +12,10 @@ const userSchema = new mongoose.Schema({
       type : String ,
        enum : ["PATIENT" , "DOCTOR" , "ADMIN"] ,
        default : "PATIENT" ,
+    }, 
+    preferredLanguage : {
+      type : String ,
+      default :"en" 
     }
 }) ;
 

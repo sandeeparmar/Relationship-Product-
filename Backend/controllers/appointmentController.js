@@ -1,5 +1,7 @@
 import { Appointment } from "../models/Appointment.js";
 import { mongoose } from "mongoose";
+import { doctor } from "../models/Doctor.js" ;
+import { calculateWaitingTime } from "../utils/waitingTime.js";
 
 export const bookAppointment = async (req, res) => {
   const {doctorId , date , timeSlot} = req.body ;
@@ -39,11 +41,30 @@ export const bookAppointment = async (req, res) => {
 } ;
 
 export const getDoctorAppointments  = async (req , res) => {
-  const appointment = await Appointment.find({
-    doctorId : req.params.id 
+
+  if(req.user.role !== "DOCTOR") {
+    return res.status(403).json({message : "Access Denied"}) ;
+  }
+
+  const doctor1 = await doctor.findById(req.params.id) ;
+ 
+  if(!doctor1) {
+    return res.status(404).json({message : "Doctor Not Found"}) ;
+  }
+  
+  const appointments = await Appointment.find({
+    doctorId : req.params.id ,
+    status : {$in :["BOOKED" , "IN_PROGESS"]} 
     }).sort("queueNumber") ;
 
-    res.json(appointment) ;
+    const withWaitingTime = appointments.map(a => ({
+      ...a.doc ,
+      withWaitingTime :calculateWaitingTime(
+          a.queueNumber ,
+          doctor.consultationTime 
+      )
+    })) ;
+    res.json(withWaitingTime) ;
 } ;
 
 export const updateStatus = async (req ,res) => { 
@@ -54,7 +75,7 @@ export const updateStatus = async (req ,res) => {
     status = status.toUpperCase() ;
     
     if(req.user.role !== "DOCTOR"){
-      return res.status(403).json(req.user.role) ;
+      return res.status(403).json("your role is " , req.user.role) ;
     } 
     
     const appointment = await Appointment.findById(req.params.id).session(session) ;
@@ -91,6 +112,12 @@ export const updateStatus = async (req ,res) => {
 
       await session.commitTransaction() ;
       session.endSession() ; 
+      
+      const io = req.app.get("io") ;
+      
+      io.to(String(appointment.doctorId)).emit("queueUpdated" , {
+         doctorId : appointment.doctorId 
+      }) ;
 
       res.json({
         message : "Status updated successfully" ,

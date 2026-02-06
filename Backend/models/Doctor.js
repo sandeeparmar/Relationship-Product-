@@ -5,7 +5,10 @@ const doctorSchema = new mongoose.Schema({
      ref : "User" 
    } ,
    specialization : String ,
-   consultationTime : Number
+   consultationTime :{
+      type : String ,
+      default : 15 
+    }
 }) ;
 
 export const doctor = mongoose.model("Doctor" , doctorSchema) ;
