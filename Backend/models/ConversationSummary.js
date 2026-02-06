@@ -5,4 +5,4 @@ const schema = new mongoose.Schema({
   summary : String 
 } , {timestamps : true}) ;
 
-export const conversationSchema = mongoose.model("ConversationSummary" , schema) ;
+export const ConversationSummary = mongoose.model("ConversationSummary" , schema) ;

@@ -4,6 +4,9 @@ import { User } from "../models/User.js";
 import {detectLanguage } from "../services/languageDetect.js" ;
 import { translateText } from "../services/translationService.js";
 import {encrypt , decrypt } from "../services/encryptionService.js"
+import {generateSummary } from "../services/summaryService.js" ;
+import {ConversationSummary} from "../models/ConversationSummary.js" ;
+
 
 export const createRoom = async (req ,res) => {
   const {doctorId , patientId} = req.body ;
@@ -87,3 +90,43 @@ export const getConversationHistory = async (req ,res) => {
     }).sort({createdAt : 1}) ;
     res.json(message);
 } ;
+
+
+export const generateConversationSummary = async(req ,res) => {
+   const room = await chatRoom.findById(req.params.roomId) ;
+
+   if(!room){
+    return res.status(404).json({message : "Room not found"}) ;
+   }
+
+   const message = await  Message.find({
+    roomId : room._id 
+   }).sort({createdAt : 1}) ;
+
+   const plainText = message.map(m => m.translatedContent || m.content).join("\n") ; 
+
+   const summary = await generateSummary(plainText) ;
+
+   await ConversationSummary.create({
+    roomId : room._id ,
+    summary
+    }) ;  
+
+    if(summary.toLocaleLowerCase().includes("diabetes")) {
+       await DiseaseProgram.create({
+          diseaseName : "Diabetes" ,
+          patientId : room.patientId ,
+          assignedDoctor : room.doctorId ,
+          carePlan : {
+            medications : ["As prescribed"] ,
+            followsUps :["Monthly blood Sugar test"] 
+          }  ,
+          status : "ACTIVE" 
+       }) ;
+    } 
+
+    res.json({
+      message : "Summary generated" ,
+      summary 
+    }) ;
+} ; 
