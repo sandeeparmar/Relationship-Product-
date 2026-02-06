@@ -44,8 +44,6 @@ export const login = async (req , res) => {
   res.json({success : true , user : {id : user._id , name :user.name}})  ;
 } ;
 
-
-
 export const logout = async (req ,res) => {
   res.clearCookie('token' , {
     httpOnly : true ,

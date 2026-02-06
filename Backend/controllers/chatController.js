@@ -1,7 +1,9 @@
 import { chatRoom } from "../models/ChatRoom.js";
 import { Message } from "../models/Message.js";
 import { User } from "../models/User.js";
+import {detectLanguage } from "../services/languageDetect.js" ;
 import { translateText } from "../services/translationService.js";
+import {encrypt , decrypt } from "../services/encryptionService.js"
 
 export const createRoom = async (req ,res) => {
   const {doctorId , patientId} = req.body ;
@@ -29,22 +31,36 @@ export const sendTextMessage = async (req ,res) => {
 
   const receiver = await User.findById(receiverId) ;
 
+   const detectedLang = await detectLanguage(req.body.text);
+
   const translated = await translateText(
     req.body.text ,
-    sender.preferredLanguage,
+    detectedLang ,
     receiver.preferredLanguage 
   ) ;
+
+   const encryptedOriginal = encrypt(req.body.text);
+  const encryptedTranslated = encrypt(translated);
+
 
   const message = await Message.create({
     roomId: room._id,
     senderId: sender._id,
     senderRole: sender.role,
     type: "TEXT",
-    content: req.body.text,
-    translatedContent: translated,
-    originalLanguage: sender.preferredLanguage,
+
+    content: encryptedOriginal,
+    translatedContent: encryptedTranslated,
+    
+    originalLanguage: detectedLang,
     translatedLanguage: receiver.preferredLanguage
   }) ;
+
+   const outgoingMessage = {
+    ...message._doc,
+    content: req.body.text,
+    translatedContent: translated
+  };
 
   const io  = req.app.get("io") ;
   
