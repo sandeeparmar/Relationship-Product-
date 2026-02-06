@@ -63,7 +63,6 @@ export const sendTextMessage = async (req ,res) => {
   };
 
   const io  = req.app.get("io") ;
-  
   io.to(req.body.roomId).emit("newMessage" , message);
   
   res.json(message) ;
