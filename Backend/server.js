@@ -7,6 +7,7 @@ import appointmentRoutes from "./routes/appointmentRoutes.js" ;
 import authRoutes from "./routes/authRoutes.js" ;
 import cookieParser from "cookie-parser";
 import { Server } from "socket.io";
+import  chatRoutes  from "./routes/chatRoutes.js";
 dotenv.config() ;
 connectDB() ;
 
@@ -28,6 +29,9 @@ io.on("connection" , (socket) =>{
   socket.on("joinDoctorRoom" , (doctorId) => {
       socket.join(doctorId) ;
   }) ;
+  socket.on("joinChatRoom", (roomId) => {
+    socket.join(roomId);
+  });
 
   socket.on("disconnect" , () => {
     console.log("User Disconnected") ;
@@ -36,6 +40,8 @@ io.on("connection" , (socket) =>{
 
 app.use("/api/auth", authRoutes) ;
 app.use("/api/appointments", appointmentRoutes) ;
+app.use("/api/chat" , chatRoutes) ;
+app.use("/uploads" , express.static("uploads"));
 
 server.listen(process.env.PORT , () =>{
   console.log(`Server is running on port ${process.env.PORT}`);
