@@ -8,6 +8,7 @@ import authRoutes from "./routes/authRoutes.js" ;
 import cookieParser from "cookie-parser";
 import { Server } from "socket.io";
 import  chatRoutes  from "./routes/chatRoutes.js";
+import doctorRoutes from "./routes/doctorRoutes.js";
 dotenv.config() ;
 connectDB() ;
 
@@ -42,6 +43,7 @@ app.use("/api/auth", authRoutes) ;
 app.use("/api/appointments", appointmentRoutes) ;
 app.use("/api/chat" , chatRoutes) ;
 app.use("/uploads" , express.static("uploads"));
+app.use("/api/doctors" , doctorRoutes);
 
 server.listen(process.env.PORT , () =>{
   console.log(`Server is running on port ${process.env.PORT}`);

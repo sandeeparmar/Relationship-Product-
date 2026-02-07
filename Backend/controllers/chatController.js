@@ -14,6 +14,7 @@ export const createRoom = async (req ,res) => {
   if(!room) {
     room = await chatRoom.create({doctorId ,patientId}) ;
   }
+  console.log() ;
   res.json(room) ; 
 } ;
 
@@ -25,16 +26,15 @@ export const getMessages = async (req, res) => {
 } ;
 
 export const sendTextMessage = async (req ,res) => {
-   
-  const sender = await User.findById(req.user.id) ;
-  
-  const room = await chatRoom.findById(req.body.roomId) ;
-  
-  const receiverId = String(room.doctorId) == String(sender._id) ? room.patientId: room.doctorId ;
+  const sender = await User.findById(req.user.id) ;//sender data 
 
-  const receiver = await User.findById(receiverId) ;
+  const room = await chatRoom.findById(req.body.roomId) ;//room id between the d to p or p to d
+  
+  const receiverId = String(room.doctorId) == String(sender._id) ? room.patientId: room.doctorId ; // receiver id 
 
-   const detectedLang = await detectLanguage(req.body.text);
+  const receiver = await User.findById(receiverId) ; // receiver data
+  
+  const detectedLang = await detectLanguage(req.body.text);
 
   const translated = await translateText(
     req.body.text ,

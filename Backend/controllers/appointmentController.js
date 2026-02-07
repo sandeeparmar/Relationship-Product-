@@ -69,6 +69,7 @@ export const getDoctorAppointments  = async (req , res) => {
 } ;
 
 export const updateStatus = async (req ,res) => { 
+  
   const session = await mongoose.startSession() ;
   session.startTransaction() ;
   try{
