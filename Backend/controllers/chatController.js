@@ -91,7 +91,6 @@ export const getConversationHistory = async (req ,res) => {
     res.json(message);
 } ;
 
-
 export const generateConversationSummary = async(req ,res) => {
    const room = await chatRoom.findById(req.params.roomId) ;
 

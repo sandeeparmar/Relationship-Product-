@@ -76,7 +76,7 @@ export const updateStatus = async (req ,res) => {
     status = status.toUpperCase() ;
     
     if(req.user.role !== "DOCTOR"){
-      return res.status(403).json("your role is " , req.user.role) ;
+      return res.status(403).json("your role is " + req.user.role) ;
     } 
     
     const appointment = await Appointment.findById(req.params.id).session(session) ;
@@ -149,6 +149,26 @@ export const updateStatus = async (req ,res) => {
 } ;
 
 export const confirmAppointment = async (req , res) => {
+
+    if(req.user.role !== "DOCTOR"){
+      return res.status(401).json({message : "you have no access to this task"}) ;
+    }
+
+    const appointment = await Appointment.findById(req.params.id) ;
+
+
+    if(!appointment || (appointment.status === "COMPLETED") || (appointment.status === "BOOKED")){
+       if(!appointment) return res.status(404).json({message : "Appointment not found"}) ; 
+       else if(appointment.status === "COMPLETED"){
+         return res.status(400).json({message : "This Appointment is already completed"}) ;
+       } 
+       else {
+        return res.status(400).json({
+        message: "This appointment is already confirmed"
+      });
+       }
+    }
+
     const count = await Appointment.countDocuments({
       doctorId : req.body.doctorId ,
       date : req.body.date ,
@@ -156,16 +176,13 @@ export const confirmAppointment = async (req , res) => {
       status : "BOOKED" 
     }) ;
 
-    const appointment = await Appointment.findByIdAndUpdate(
-      req.params.id ,
-      {
-        status : "BOOKED" ,
-        queueNumber : count+1 
-      } ,
-      {new : true}
-    ) ;
+    appointment.status = "BOOKED";
+    appointment.queueNumber = count + 1;
+
+    await appointment.save();
+
     res.json({
-      message : "Appointment Confirmed" ,
-      appointment 
-    }) ;
+      message: "Appointment confirmed",
+      appointment
+    });
 } ;
