@@ -1,6 +1,7 @@
 import {User} from "../models/User.js" ;
 import bcrypt from "bcrypt" ;
 import jwt from   "jsonwebtoken" ;
+import { Doctor } from "../models/Doctor.js";
 
 export const register = async (req , res) => { 
   let {name , email , password , role , phone , preferredLanguage} = req.body ;
@@ -15,6 +16,17 @@ export const register = async (req , res) => {
    role = role.toUpperCase() ; 
   
   const user = await User.create({name , email , password : hashedPassword  , role , phone , preferredLanguage}) ;
+
+  if(role === "DOCTOR"){
+    await Doctor.create({
+      userId : user._id ,
+      specialization :"General" ,
+      consultationTime : 15 
+    }) ;
+  } 
+
+
+
   res.status(201).json({message : "User Registered"}) ;
 } ;
 

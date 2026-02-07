@@ -1,6 +1,6 @@
 import { Appointment } from "../models/Appointment.js";
 import { mongoose } from "mongoose";
-import { doctor } from "../models/Doctor.js" ;
+import { Doctor } from "../models/Doctor.js" ;
 import { calculateWaitingTime } from "../utils/waitingTime.js";
 import { idmMetric } from "../models/IDMMetric.js";
 
@@ -45,24 +45,24 @@ export const getDoctorAppointments  = async (req , res) => {
 
   if(req.user.role !== "DOCTOR") {
     return res.status(403).json({message : "Access Denied"}) ;
-  }
+  } 
+  
+  const doctorProfile  = await Doctor.findOne({ userId : req.user.id}) ;
 
-  const doctor1 = await doctor.findById(req.params.id) ;
- 
-  if(!doctor1) {
+  if(!doctorProfile) {
     return res.status(404).json({message : "Doctor Not Found"}) ;
   }
   
   const appointments = await Appointment.find({
-    doctorId : req.params.id ,
-    status : {$in :["BOOKED" , "IN_PROGESS"]} 
+    doctorId : doctorProfile._id  ,
+    status : {$in :["BOOKED" , "IN_PROGRESS"]} 
     }).sort("queueNumber") ;
 
     const withWaitingTime = appointments.map(a => ({
-      ...a.doc ,
-      withWaitingTime :calculateWaitingTime(
+      ...a._doc ,
+       waitingTime :calculateWaitingTime(
           a.queueNumber ,
-          doctor.consultationTime 
+          doctorProfile.consultationTime 
       )
     })) ;
     res.json(withWaitingTime) ;
