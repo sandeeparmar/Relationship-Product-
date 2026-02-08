@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { socket } from "../context/SocketContext";
 import api from "../api/api";
 import AudioRecorder from "../components/AudioRecorder";
+import AudioMessage from "../components/AudioMessage";
 import { AuthContext } from "../context/AuthContext";
 
 export default function Chat() {
@@ -21,26 +22,25 @@ export default function Chat() {
   }, [messages]);
 
   useEffect(() => {
+    console.log("Joining chat room:", roomId);
     socket.emit("joinChatRoom", roomId);
 
     const handleNewMessage = (msg) => {
+      console.log("Received new message:", msg);
       setMessages((prev) => [...prev, msg]);
     };
 
     socket.on("newMessage", handleNewMessage);
 
-    // Load initial messages if needed, backend doesn't seem to have an endpoint for history in the provided code snippet, 
-    // but typically we'd load it here. 
-    // Assuming history is not persisted or provided by socket on join for now based on snippet.
-    // If backend has history endpoint, uncomment below:
-    // const loadHistory = async () => {
-    //    const res = await api.get(`/chat/${roomId}`);
-    //    setMessages(res.data);
-    // };
-    // loadHistory();
+    // Add connection debugging
+    socket.on("connect", () => {
+      console.log("Socket connected:", socket.id);
+      socket.emit("joinChatRoom", roomId); // Re-join on reconnect
+    });
 
     return () => {
       socket.off("newMessage", handleNewMessage);
+      socket.off("connect");
     };
   }, [roomId]);
 
@@ -103,21 +103,25 @@ export default function Chat() {
 
           return (
             <div key={i} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 rounded-lg shadow-sm ${isMe
-                    ? "bg-blue-600 text-white rounded-br-none"
-                    : "bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-none border border-gray-200 dark:border-gray-600"
-                  }`}
-              >
-                {m.type === "TEXT" && <p>{m.translatedContent || m.content}</p>}
-                {m.type === "AUDIO" && (
-                  <div className="flex items-center space-x-2">
-                    <audio controls src={`http://localhost:5000/${m.content}`} className="w-full max-w-[200px]" />
+              <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} max-w-xs md:max-w-md lg:max-w-lg`}>
+                <span className="text-xs text-gray-500 mb-1 px-1">
+                  {m.senderId?.name || "Unknown"}
+                </span>
+                <div
+                  className={`px-4 py-2 rounded-lg shadow-md ${isMe
+                    ? "bg-green-500 text-white rounded-tr-none"
+                    : "bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-tl-none border border-gray-200 dark:border-gray-600"
+                    }`}
+                >
+                  {m.type === "TEXT" && <p className="text-sm">{m.translatedContent || m.content}</p>}
+                  {m.type === "AUDIO" && (
+                    <div className="mt-1">
+                      <AudioMessage src={`http://localhost:5000/${m.content}`} />
+                    </div>
+                  )}
+                  <div className={`text-[10px] mt-1 text-right ${isMe ? "text-green-100" : "text-gray-400"}`}>
+                    {new Date(m.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
-                )}
-                <div className={`text-xs mt-1 ${isMe ? "text-blue-200" : "text-gray-500 dark:text-gray-400"}`}>
-                  {/* Time or Sender Name if available */}
-                  {new Date(m.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
             </div>

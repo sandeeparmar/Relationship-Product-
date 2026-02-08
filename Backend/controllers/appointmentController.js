@@ -1,8 +1,10 @@
 import { Appointment } from "../models/Appointment.js";
 import { mongoose } from "mongoose";
 import { Doctor } from "../models/Doctor.js";
+import { User } from "../models/User.js";
 import { calculateWaitingTime } from "../utils/waitingTime.js";
 import { idmMetric } from "../models/IDMMetric.js";
+import { sendEmail } from "../services/emailService.js";
 
 export const bookAppointment = async (req, res) => {
 
@@ -11,7 +13,7 @@ export const bookAppointment = async (req, res) => {
       message: "Only patients can book appointments"
     });
   }
-  const { doctorId, date, timeSlot } = req.body;
+  const { doctorId, date, timeSlot, reason } = req.body; // Added reason
 
   const existingAppointment = await Appointment.findOne({
     patientId: req.user.id,
@@ -38,8 +40,22 @@ export const bookAppointment = async (req, res) => {
     doctorId,
     date,
     timeSlot,
+    reason, // Save reason
     queueNumber: count + 1
   });
+
+  // Send email to Doctor
+  try {
+    const doctor = await Doctor.findById(doctorId).populate("userId");
+    if (doctor && doctor.userId && doctor.userId.email) {
+      const subject = "New Appointment Request";
+      const text = `Hello Dr. ${doctor.userId.name},\n\nYou have a new appointment request from a patient.\n\nDate: ${date}\nTime Slot: ${timeSlot}\nReason: ${reason}\n\nPlease check your dashboard to confirm.`;
+      await sendEmail(doctor.userId.email, subject, text);
+    }
+  } catch (emailErr) {
+    console.error("Failed to send booking email:", emailErr);
+  }
+
   res.status(201).json(appointment);
 };
 
@@ -58,7 +74,9 @@ export const getDoctorAppointments = async (req, res) => {
   const appointments = await Appointment.find({
     doctorId: doctorProfile._id,
     status: { $in: ["PENDING", "BOOKED", "IN_PROGRESS"] }
-  }).sort("queueNumber");
+  })
+    .sort("queueNumber")
+    .populate("patientId", "name email phone preferredLanguage"); // Populate patient details
 
   const withWaitingTime = appointments.map(a => ({
     ...a._doc,
@@ -101,7 +119,7 @@ export const updateStatus = async (req, res) => {
     await appointment.save({ session });
 
 
-    if (status === "COMPLETED") {
+    if (status === "COMPLETED" || (status === "CANCELLED" && ["BOOKED", "IN_PROGRESS"].includes(appointment.status))) {
       await Appointment.updateMany(
         {
           doctorId: appointment.doctorId,
@@ -115,15 +133,17 @@ export const updateStatus = async (req, res) => {
         { session }
       );
 
-      await idmMetric.create([{
-        metricName: "ConsultationCompleted",
-        category: "PROCESS",
-        value: 1,
-        context: {
-          doctorId: Appointment.doctorId,
-          patientId: Appointment.patientId
-        }
-      }], { session });
+      if (status === "COMPLETED") {
+        await idmMetric.create([{
+          metricName: "ConsultationCompleted",
+          category: "PROCESS",
+          value: 1,
+          context: {
+            doctorId: appointment.doctorId, // Corrected from Appointment.doctorId
+            patientId: appointment.patientId // Corrected from Appointment.patientId
+          }
+        }], { session });
+      }
 
     }
 
@@ -135,6 +155,20 @@ export const updateStatus = async (req, res) => {
     io.to(String(appointment.doctorId)).emit("queueUpdated", {
       doctorId: appointment.doctorId
     });
+
+    // Send Email if Cancelled
+    if (status === "CANCELLED") {
+      try {
+        await appointment.populate("patientId");
+        if (appointment.patientId && appointment.patientId.email) {
+          const subject = "Appointment Update: Denied/Cancelled";
+          const text = `Hello ${appointment.patientId.name},\n\nYour appointment on ${appointment.date} at ${appointment.timeSlot} has been denied or cancelled by the doctor.\n\nPlease check your dashboard for more details or to book another slot.`;
+          await sendEmail(appointment.patientId.email, subject, text);
+        }
+      } catch (emailErr) {
+        console.error("Failed to send cancellation email:", emailErr);
+      }
+    }
 
     res.json({
       message: "Status updated successfully",
@@ -183,6 +217,18 @@ export const confirmAppointment = async (req, res) => {
   appointment.queueNumber = count + 1;
 
   await appointment.save();
+
+  // Send Email to Patient
+  try {
+    await appointment.populate("patientId");
+    if (appointment.patientId && appointment.patientId.email) {
+      const subject = "Appointment Confirmed";
+      const text = `Hello ${appointment.patientId.name},\n\nYour appointment has been confirmed!\n\nDate: ${appointment.date}\nTime Slot: ${appointment.timeSlot}\n\nPlease arrive 10 minutes eary.`;
+      await sendEmail(appointment.patientId.email, subject, text);
+    }
+  } catch (emailErr) {
+    console.error("Failed to send confirmation email:", emailErr);
+  }
 
   res.json({
     message: "Appointment confirmed",

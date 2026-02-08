@@ -60,6 +60,7 @@ export default function DoctorDashboard() {
       case "BOOKED": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
       case "IN_PROGRESS": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
       case "COMPLETED": return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
+      case "CANCELLED": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -85,24 +86,34 @@ export default function DoctorDashboard() {
               <div key={a._id} className="bg-yellow-50 dark:bg-gray-800 border border-yellow-200 dark:border-yellow-900 shadow rounded-lg p-6 flex flex-col justify-between">
                 <div>
                   <div className="flex justify-between items-start">
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white">Request</h4>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-white">
+                      {a.patientId?.name || "Unknown Patient"}
+                    </h4>
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(a.status)}`}>
                       {a.status}
                     </span>
                   </div>
                   <div className="mt-4 space-y-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Date: <span className="font-semibold">{a.date}</span></p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Slot: <span className="font-semibold">{a.timeSlot}</span></p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Patient ID: {a.patientId}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Phone: <span className="font-semibold">{a.patientId?.phone || "N/A"}</span></p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Reason: <span className="font-semibold italic">{a.reason || "General Consultation"}</span></p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Date: <span className="font-semibold">{a.date}</span> | {a.timeSlot}</p>
                   </div>
                 </div>
                 <div className="mt-6 space-y-3">
-                  <button
-                    onClick={() => confirmAppointment(a._id)}
-                    className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    Confirm Appointment
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => confirmAppointment(a._id)}
+                      className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => updateStatus(a._id, "CANCELLED")}
+                      className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                      Deny
+                    </button>
+                  </div>
                   <button
                     onClick={async () => {
                       try {
@@ -146,8 +157,12 @@ export default function DoctorDashboard() {
                     </span>
                   </div>
                   <div className="mt-4 space-y-2">
+                    <h4 className="text-md font-semibold text-gray-800 dark:text-white">
+                      {a.patientId?.name || "Unknown Patient"}
+                    </h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Phone: {a.patientId?.phone || "N/A"}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Reason: <span className="italic">{a.reason || "General Consultation"}</span></p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Waiting Time: <span className="font-semibold text-gray-900 dark:text-white">{a.waitingTime} mins</span></p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Patient ID: <span className="text-sm font-normal text-gray-500">{a.patientId}</span></p>
                     <p className="text-sm text-gray-600 dark:text-gray-300">Date: {a.date} | {a.timeSlot}</p>
                   </div>
                 </div>

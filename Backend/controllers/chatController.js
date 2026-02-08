@@ -21,7 +21,7 @@ export const getMessages = async (req, res) => {
   try {
     const messages = await Message.find({
       roomId: req.params.roomId
-    }).sort("createdAt");
+    }).sort("createdAt").populate("senderId", "name email");
 
     // Decrypt messages before sending to frontend
     const decryptedMessages = messages.map(msg => ({
@@ -71,6 +71,9 @@ export const sendTextMessage = async (req, res) => {
       translatedLanguage: receiver?.preferredLanguage || "en"
     });
 
+    // Populate sender details for the response
+    await message.populate("senderId", "name email");
+
     // Decrypt for the response and socket emission
     const outgoingMessage = {
       ...message._doc,
@@ -97,6 +100,9 @@ export const sendAudioMessage = async (req, res) => {
       content: req.file.path,
       type: "AUDIO"
     });
+
+    await message.populate("senderId", "name email");
+
     const io = req.app.get("io");
     io.to(req.body.roomId).emit("newMessage", message);
     res.json(message);

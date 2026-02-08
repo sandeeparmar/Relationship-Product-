@@ -10,7 +10,8 @@ export default function PatientDashboard() {
   const [formData, setFormData] = useState({
     doctorId: "",
     date: "",
-    timeSlot: ""
+    timeSlot: "",
+    reason: ""
   });
   const [appointment, setAppointment] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -97,6 +98,18 @@ export default function PatientDashboard() {
             />
           </div>
 
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Reason for Visit</label>
+            <textarea
+              name="reason"
+              value={formData.reason}
+              onChange={handleChange}
+              rows="2"
+              placeholder="Briefly describe your symptoms or reason for visit..."
+              className="mt-1 block w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            />
+          </div>
+
           <div className="md:col-span-2 flex justify-end">
             <button
               type="submit"
@@ -128,8 +141,18 @@ export default function PatientDashboard() {
                   <button
                     onClick={async () => {
                       try {
+                        // Find doctor profile to get the User ID
+                        const docProfile = doctors.find(d => d._id === appointment.doctorId);
+                        // Handle populated userId object or direct ID if it wasn't populated (though it seems populated in list)
+                        const docUserId = docProfile?.userId?._id || docProfile?.userId;
+
+                        if (!docUserId) {
+                          alert("Could not identify doctor user ID");
+                          return;
+                        }
+
                         const res = await api.post("/chat/room", {
-                          doctorId: appointment.doctorId,
+                          doctorId: docUserId, // Send User ID, not Profile ID
                           patientId: user.id
                         });
                         navigate(`/chat/${res.data._id}`);
