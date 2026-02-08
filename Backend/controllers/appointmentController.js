@@ -1,189 +1,191 @@
 import { Appointment } from "../models/Appointment.js";
 import { mongoose } from "mongoose";
-import { Doctor } from "../models/Doctor.js" ;
+import { Doctor } from "../models/Doctor.js";
 import { calculateWaitingTime } from "../utils/waitingTime.js";
 import { idmMetric } from "../models/IDMMetric.js";
 
 export const bookAppointment = async (req, res) => {
-  const {doctorId , date , timeSlot} = req.body ;
 
-  if(req.user.role !== "PATIENT"){
-     return res.status(403).json({
-      message : "Only patients can book appointments"
-     }) ;
+  if (req.user.role !== "PATIENT") {
+    return res.status(403).json({
+      message: "Only patients can book appointments"
+    });
   }
+  const { doctorId, date, timeSlot } = req.body;
 
   const existingAppointment = await Appointment.findOne({
-    patientId : req.user.id ,
-    status : {$in:["BOOKED" , "IN_PROGRESS" , "PENDING"]}  
-  }) ;
+    patientId: req.user.id,
+    doctorId,
+    date,
+    status: { $in: ["BOOKED", "IN_PROGRESS", "PENDING"] }
+  });
 
-  if(existingAppointment){
+  if (existingAppointment) {
     return res.status(400).json({
-      message : "You already have an Active Appoinement"
-    }) ;
+      message: "You already have an Active Appoinement"
+    });
   }
 
   const count = await Appointment.countDocuments({
-    doctorId ,
-    date ,
-    timeSlot 
-  }) ;
+    doctorId,
+    date,
+    timeSlot
+  });
 
 
   const appointment = await Appointment.create({
-    patientId : req.user.id ,
-    doctorId ,
-    date , 
-    timeSlot ,
-    queueNumber : count+1 
-  }) ;
-   res.status(201).json(appointment) ; 
-} ;
+    patientId: req.user.id,
+    doctorId,
+    date,
+    timeSlot,
+    queueNumber: count + 1
+  });
+  res.status(201).json(appointment);
+};
 
-export const getDoctorAppointments  = async (req , res) => {
+export const getDoctorAppointments = async (req, res) => {
 
-  if(req.user.role !== "DOCTOR") {
-    return res.status(403).json({message : "Access Denied"}) ;
-  } 
-  
-  const doctorProfile  = await Doctor.findOne({ userId : req.user.id}) ;
-
-  if(!doctorProfile) {
-    return res.status(404).json({message : "Doctor Not Found"}) ;
+  if (req.user.role !== "DOCTOR") {
+    return res.status(403).json({ message: "Access Denied" });
   }
-  
+
+  const doctorProfile = await Doctor.findOne({ userId: req.user.id });
+
+  if (!doctorProfile) {
+    return res.status(404).json({ message: "Doctor Not Found" });
+  }
+
   const appointments = await Appointment.find({
-    doctorId : doctorProfile._id  ,
-    status : {$in :["BOOKED" , "IN_PROGRESS"]} 
-    }).sort("queueNumber") ;
+    doctorId: doctorProfile._id,
+    status: { $in: ["PENDING", "BOOKED", "IN_PROGRESS"] }
+  }).sort("queueNumber");
 
-    const withWaitingTime = appointments.map(a => ({
-      ...a._doc ,
-       waitingTime :calculateWaitingTime(
-          a.queueNumber ,
-          doctorProfile.consultationTime 
-      )
-    })) ;
-    res.json(withWaitingTime) ;
-} ;
+  const withWaitingTime = appointments.map(a => ({
+    ...a._doc,
+    waitingTime: calculateWaitingTime(
+      a.queueNumber,
+      doctorProfile.consultationTime
+    )
+  }));
+  res.json(withWaitingTime);
+};
 
-export const updateStatus = async (req ,res) => { 
-  
-  const session = await mongoose.startSession() ;
-  session.startTransaction() ;
-  try{
-    let {status} = req.body ;
-    status = status.toUpperCase() ;
-    
-    if(req.user.role !== "DOCTOR"){
-      return res.status(403).json("your role is " + req.user.role) ;
-    } 
-    
-    const appointment = await Appointment.findById(req.params.id).session(session) ;
-    
-    if(!appointment){
+export const updateStatus = async (req, res) => {
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    let { status } = req.body;
+    status = status.toUpperCase();
+
+    if (req.user.role !== "DOCTOR") {
+      return res.status(403).json("your role is " + req.user.role);
+    }
+
+    const appointment = await Appointment.findById(req.params.id).session(session);
+
+    if (!appointment) {
       return res.status(404).json({
-        message : "Appointment not found"
-      }) ;
+        message: "Appointment not found"
+      });
     }
-    
-    if(appointment.status === "COMPLETED"){
-      return res.status(400).json({
-        message : "This appointment is already completed and locked"
-      }) ;
-    }
-    
-    const oldQueueNumber = appointment.queueNumber ;
-    appointment.status = status ;
-    await appointment.save({session}) ;
-    
 
-    if(status === "COMPLETED") {
+    if (appointment.status === "COMPLETED") {
+      return res.status(400).json({
+        message: "This appointment is already completed and locked"
+      });
+    }
+
+    const oldQueueNumber = appointment.queueNumber;
+    appointment.status = status;
+    await appointment.save({ session });
+
+
+    if (status === "COMPLETED") {
       await Appointment.updateMany(
         {
-          doctorId : appointment.doctorId ,
-          date : appointment.date ,
-          timeSlot : appointment.timeSlot ,
-          status : {$in:["BOOKED" , "IN_PROGRESS"]} ,
-          queueNumber : {$gt : oldQueueNumber}
+          doctorId: appointment.doctorId,
+          date: appointment.date,
+          timeSlot: appointment.timeSlot,
+          status: { $in: ["BOOKED", "IN_PROGRESS"] },
+          queueNumber: { $gt: oldQueueNumber }
         }, {
-          $inc : {queueNumber : -1} 
-        } ,
-        {session}
-      ) ;
-       
-        await idmMetric.create([{
-          metricName : "ConsultationCompleted" ,
-          category : "PROCESS" ,
-          value : 1 ,
-          context : {
-             doctorId : Appointment.doctorId ,
-             patientId : Appointment.patientId 
-          } 
-        }] , {session}) ;
-        
-      }
+        $inc: { queueNumber: -1 }
+      },
+        { session }
+      );
 
-      await session.commitTransaction() ;
-      session.endSession() ; 
-      
-      const io = req.app.get("io") ;
-      
-      io.to(String(appointment.doctorId)).emit("queueUpdated" , {
-         doctorId : appointment.doctorId 
-      }) ;
+      await idmMetric.create([{
+        metricName: "ConsultationCompleted",
+        category: "PROCESS",
+        value: 1,
+        context: {
+          doctorId: Appointment.doctorId,
+          patientId: Appointment.patientId
+        }
+      }], { session });
 
-      res.json({
-        message : "Status updated successfully" ,
-        appointment 
-      })
-    }
-    catch(err) {
-      await session.abortTransaction() ;
-      session.endSession() ;
-
-      res.status(400).json({
-        message : error.message 
-      }) ;
-    }
-} ;
-
-export const confirmAppointment = async (req , res) => {
-
-    if(req.user.role !== "DOCTOR"){
-      return res.status(401).json({message : "you have no access to this task"}) ;
     }
 
-    const appointment = await Appointment.findById(req.params.id) ;
+    await session.commitTransaction();
+    session.endSession();
 
+    const io = req.app.get("io");
 
-    if(!appointment || (appointment.status === "COMPLETED") || (appointment.status === "BOOKED")){
-       if(!appointment) return res.status(404).json({message : "Appointment not found"}) ; 
-       else if(appointment.status === "COMPLETED"){
-         return res.status(400).json({message : "This Appointment is already completed"}) ;
-       } 
-       else {
-        return res.status(400).json({
-        message: "This appointment is already confirmed"
-      });
-       }
-    }
-
-    const count = await Appointment.countDocuments({
-      doctorId : req.body.doctorId ,
-      date : req.body.date ,
-      timeSlot : req.body.timeSlot ,
-      status : "BOOKED" 
-    }) ;
-
-    appointment.status = "BOOKED";
-    appointment.queueNumber = count + 1;
-
-    await appointment.save();
+    io.to(String(appointment.doctorId)).emit("queueUpdated", {
+      doctorId: appointment.doctorId
+    });
 
     res.json({
-      message: "Appointment confirmed",
+      message: "Status updated successfully",
       appointment
+    })
+  }
+  catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+
+    res.status(400).json({
+      message: error.message
     });
-} ;
+  }
+};
+
+export const confirmAppointment = async (req, res) => {
+
+  if (req.user.role !== "DOCTOR") {
+    return res.status(401).json({ message: "you have no access to this task" });
+  }
+
+  const appointment = await Appointment.findById(req.params.id);
+
+
+  if (!appointment || (appointment.status === "COMPLETED") || (appointment.status === "BOOKED")) {
+    if (!appointment) return res.status(404).json({ message: "Appointment not found" });
+    else if (appointment.status === "COMPLETED") {
+      return res.status(400).json({ message: "This Appointment is already completed" });
+    }
+    else {
+      return res.status(400).json({
+        message: "This appointment is already confirmed"
+      });
+    }
+  }
+
+  const count = await Appointment.countDocuments({
+    doctorId: appointment.doctorId,
+    date: appointment.date,
+    timeSlot: appointment.timeSlot,
+    status: { $in: ["BOOKED", "IN_PROGRESS"] }
+  });
+
+  appointment.status = "BOOKED";
+  appointment.queueNumber = count + 1;
+
+  await appointment.save();
+
+  res.json({
+    message: "Appointment confirmed",
+    appointment
+  });
+};

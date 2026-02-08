@@ -1,17 +1,25 @@
-import OpenAI from "openai"
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import 'dotenv/config';
 
-export const generateSummary = async(conversationText) => {
-  const openai = new OpenAI({apiKey : process.env.OPENAI_API_KEY }) ;
-  const res = await openai.responses.create({
-    model : "gpt-4.1-mini" ,
-    input :`Extract : 
-    -Symptoms 
-    -Diagnosis
-    -Medication 
-    -Follow-up Actions    
-    From Conversation 
-    ${conversationText}
-    `
-  }) ;
-  return res.output_text ;
-}
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+export const generateSummary = async (conversationText) => {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const prompt = `You are a medical assistant. Analyze the following conversation and extract:
+    - Symptoms
+    - Diagnosis
+    - Medication
+    - Follow-up Actions
+    
+    Conversation:
+    ${conversationText}`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text().trim();
+  } catch (error) {
+    console.error("Summary generation error:", error);
+    return "Failed to generate summary.";
+  }
+};
