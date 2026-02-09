@@ -17,14 +17,14 @@ export const bookAppointment = async (req, res) => {
 
   const existingAppointment = await Appointment.findOne({
     patientId: req.user.id,
-    doctorId,
+    // doctorId, // Removed to ensure only one appointment per day per patient REGARDLESS of doctor
     date,
     status: { $in: ["BOOKED", "IN_PROGRESS", "PENDING"] }
   });
 
   if (existingAppointment) {
     return res.status(400).json({
-      message: "You already have an Active Appoinement"
+      message: "You already have an appointment on this date. Please choose another date."
     });
   }
 
@@ -54,6 +54,21 @@ export const bookAppointment = async (req, res) => {
     }
   } catch (emailErr) {
     console.error("Failed to send booking email:", emailErr);
+  }
+
+  // Emit Socket Event to Doctor
+  const io = req.app.get("io");
+  // We need to emit to the User ID of the doctor, not the Doctor Profile ID
+  // We fetched 'doctor' above
+  if (req.doctorUserObj) {
+    io.to(String(req.doctorUserObj._id)).emit("queueUpdated");
+  } else {
+    // Fallback if doctor object wasn't captured in try-catch block scope
+    // Let's refactor to ensure we have access to doctor.userId
+    const doctor = await Doctor.findById(doctorId);
+    if (doctor) {
+      io.to(String(doctor.userId)).emit("queueUpdated");
+    }
   }
 
   res.status(201).json(appointment);
@@ -97,29 +112,36 @@ export const updateStatus = async (req, res) => {
     status = status.toUpperCase();
 
     if (req.user.role !== "DOCTOR") {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(403).json("your role is " + req.user.role);
     }
 
     const appointment = await Appointment.findById(req.params.id).session(session);
 
     if (!appointment) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({
         message: "Appointment not found"
       });
     }
 
     if (appointment.status === "COMPLETED") {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
         message: "This appointment is already completed and locked"
       });
     }
 
     const oldQueueNumber = appointment.queueNumber;
+    const oldStatus = appointment.status; // Store old status before updating
     appointment.status = status;
     await appointment.save({ session });
 
 
-    if (status === "COMPLETED" || (status === "CANCELLED" && ["BOOKED", "IN_PROGRESS"].includes(appointment.status))) {
+    if (status === "COMPLETED" || (status === "CANCELLED" && ["BOOKED", "IN_PROGRESS", "PENDING"].includes(oldStatus))) {
       await Appointment.updateMany(
         {
           doctorId: appointment.doctorId,
@@ -179,8 +201,10 @@ export const updateStatus = async (req, res) => {
     await session.abortTransaction();
     session.endSession();
 
+    console.error("Error in updateStatus:", err.message);
+    console.error("Stack:", err.stack);
     res.status(400).json({
-      message: error.message
+      message: err.message
     });
   }
 };
@@ -234,4 +258,89 @@ export const confirmAppointment = async (req, res) => {
     message: "Appointment confirmed",
     appointment
   });
+};
+
+export const denyAppointment = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    if (req.user.role !== "PATIENT") {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(403).json({ message: "Only patients can deny appointments" });
+    }
+
+    const appointment = await Appointment.findById(req.params.id).session(session);
+
+    if (!appointment) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    // Verify that the patient owns this appointment
+    if (appointment.patientId.toString() !== req.user.id) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(403).json({ message: "You can only deny your own appointments" });
+    }
+
+    // Check if appointment can be denied
+    if (["COMPLETED", "REJECTED"].includes(appointment.status)) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: "This appointment cannot be denied" });
+    }
+
+    const oldQueueNumber = appointment.queueNumber;
+    const oldStatus = appointment.status;
+    appointment.status = "REJECTED";
+    await appointment.save({ session });
+
+    // Update queue numbers for other appointments
+    if (["BOOKED", "IN_PROGRESS", "PENDING"].includes(oldStatus)) {
+      await Appointment.updateMany(
+        {
+          doctorId: appointment.doctorId,
+          date: appointment.date,
+          timeSlot: appointment.timeSlot,
+          status: { $in: ["BOOKED", "IN_PROGRESS"] },
+          queueNumber: { $gt: oldQueueNumber }
+        },
+        { $inc: { queueNumber: -1 } },
+        { session }
+      );
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    // Emit Socket Event to Doctor
+    const io = req.app.get("io");
+    io.to(String(appointment.doctorId)).emit("queueUpdated", {
+      doctorId: appointment.doctorId
+    });
+
+    // Send Email to Doctor
+    try {
+      const doctor = await Doctor.findById(appointment.doctorId).populate("userId");
+      if (doctor && doctor.userId && doctor.userId.email) {
+        const subject = "Appointment Denied by Patient";
+        const text = `Hello Dr. ${doctor.userId.name},\n\nThe patient has denied their appointment scheduled for ${appointment.date} at ${appointment.timeSlot}.\n\nPlease check your dashboard to see updated queue.`;
+        await sendEmail(doctor.userId.email, subject, text);
+      }
+    } catch (emailErr) {
+      console.error("Failed to send denial email to doctor:", emailErr);
+    }
+
+    res.json({
+      message: "Appointment denied successfully",
+      appointment
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Error in denyAppointment:", err.message);
+    res.status(400).json({ message: err.message });
+  }
 };

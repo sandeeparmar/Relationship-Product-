@@ -43,7 +43,29 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("User Disconnected");
+    socket.broadcast.emit("callEnded");
   });
+
+
+  // WebRTC Signaling Events
+  socket.on("callUser", (data) => {
+    io.to(data.userToCall).emit("callUser", {
+      signal: data.signalData,
+      from: data.from,
+      name: data.name
+    });
+  });
+
+  socket.on("answerCall", (data) => {
+    io.to(data.to).emit("callAccepted", data.signal);
+  });
+
+  // Handling ICE candidates if not using simple-peer's internal trickle (simple-peer handles it in signal)
+  // But usually straightforward simple-peer usage encapsulates this in the signal data.
+  // If we need manual ICE handling:
+  // socket.on("ice-candidate", (data) => {
+  //   io.to(data.to).emit("ice-candidate", data.candidate);
+  // });
 });
 
 app.use("/api/auth", authRoutes);
