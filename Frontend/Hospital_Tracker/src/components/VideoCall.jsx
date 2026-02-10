@@ -8,14 +8,11 @@ export default function VideoCall({ roomId, partnerId, isInitiator, onEndCall, a
     const [stream, setStream] = useState(null);
     const [callAccepted, setCallAccepted] = useState(false);
     const [callEnded, setCallEnded] = useState(false);
-    const [receivingCall, setReceivingCall] = useState(false);
-    const [caller, setCaller] = useState("");
-    const [callerSignal, setCallerSignal] = useState(null);
-    const [name, setName] = useState("");
 
     const myVideo = useRef();
     const userVideo = useRef();
     const connectionRef = useRef();
+    const peerRef = useRef();
 
     useEffect(() => {
         // Media Constraints
@@ -36,6 +33,7 @@ export default function VideoCall({ roomId, partnerId, isInitiator, onEndCall, a
                 });
 
                 peer.on("signal", (data) => {
+                    console.log("Initiator sending signal");
                     socket.emit("callRoom", {
                         roomId,
                         signalData: data,
@@ -46,15 +44,38 @@ export default function VideoCall({ roomId, partnerId, isInitiator, onEndCall, a
                 });
 
                 peer.on("stream", (remoteStream) => {
+                    console.log("Initiator received remote stream");
                     if (userVideo.current) userVideo.current.srcObject = remoteStream;
                 });
 
-                socket.on("callAccepted", (signal) => {
-                    setCallAccepted(true);
-                    peer.signal(signal);
+                peer.on("error", (err) => {
+                    console.error("Peer error (initiator):", err);
                 });
 
+                peerRef.current = peer;
                 connectionRef.current = peer;
+
+                // Listen for answer from the other peer
+                const handleCallAccepted = (signal) => {
+                    console.log("Call accepted, signaling peer");
+                    setCallAccepted(true);
+                    if (peerRef.current && !peerRef.current.destroyed) {
+                        try {
+                            peerRef.current.signal(signal);
+                        } catch (err) {
+                            console.error("Error signaling peer:", err);
+                        }
+                    }
+                };
+
+                socket.on("callAccepted", handleCallAccepted);
+
+                return () => {
+                    socket.off("callAccepted", handleCallAccepted);
+                    if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+                    if (peerRef.current) peerRef.current.destroy();
+                };
+
             } else if (incomingSignal) {
                 // Answering Logic
                 setCallAccepted(true);
@@ -65,15 +86,32 @@ export default function VideoCall({ roomId, partnerId, isInitiator, onEndCall, a
                 });
 
                 peer.on("signal", (data) => {
+                    console.log("Answerer sending signal");
                     socket.emit("answerCall", { signal: data, to: partnerSocketId });
                 });
 
                 peer.on("stream", (remoteStream) => {
+                    console.log("Answerer received remote stream");
                     if (userVideo.current) userVideo.current.srcObject = remoteStream;
                 });
 
-                peer.signal(incomingSignal);
+                peer.on("error", (err) => {
+                    console.error("Peer error (answerer):", err);
+                });
+
+                try {
+                    peer.signal(incomingSignal);
+                } catch (err) {
+                    console.error("Error signaling incoming call:", err);
+                }
+
+                peerRef.current = peer;
                 connectionRef.current = peer;
+
+                return () => {
+                    if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+                    if (peerRef.current) peerRef.current.destroy();
+                };
             }
 
         }).catch(err => {
@@ -82,15 +120,18 @@ export default function VideoCall({ roomId, partnerId, isInitiator, onEndCall, a
             onEndCall();
         });
 
+        // Listen for call ended event
+        const handleCallEnded = () => {
+            console.log("Call ended by remote peer");
+            leaveCall();
+        };
+
+        socket.on("callEnded", handleCallEnded);
+
         return () => {
-            if (stream) stream.getTracks().forEach(t => t.stop());
-            if (connectionRef.current) connectionRef.current.destroy();
-            socket.off("callAccepted");
-            socket.off("callUser"); // Cleanup old listener if any
+            socket.off("callEnded", handleCallEnded);
         };
     }, []);
-
-    // Removed old callUser/answerCall manual functions as logic is now in effect
 
     const leaveCall = () => {
         setCallEnded(true);
@@ -121,34 +162,18 @@ export default function VideoCall({ roomId, partnerId, isInitiator, onEndCall, a
                         <video playsInline ref={userVideo} autoPlay className="w-full h-full object-cover" />
                     ) : (
                         <div className="text-white text-center">
-                            {receivingCall && !callAccepted ? (
-                                <p className="animate-pulse">Incoming Call from {name}...</p>
-                            ) : (
-                                <p>Waiting for connection...</p>
-                            )}
+                            <p className="animate-pulse">
+                                {isInitiator ? "Calling..." : "Connecting..."}
+                            </p>
                         </div>
                     )}
                     <p className="absolute bottom-2 left-2 text-white bg-black bg-opacity-50 px-2 rounded">
-                        {callAccepted ? (name || "Partner") : "Not Connected"}
+                        {callAccepted ? "Partner" : "Not Connected"}
                     </p>
                 </div>
             </div>
 
             <div className="mt-8 flex gap-4">
-                {receivingCall && !callAccepted ? (
-                    <button
-                        onClick={answerCall}
-                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-full font-bold text-lg shadow-lg animate-bounce"
-                    >
-                        Answer Call
-                    </button>
-                ) : null}
-
-                {/* If initiator and not connected yet, show a 'Call' button? 
-            Ideally auto-call or show button to start. 
-            For now, simpler manual trigger within component or externally.
-        */}
-
                 <button
                     onClick={leaveCall}
                     className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-bold text-lg shadow-lg"

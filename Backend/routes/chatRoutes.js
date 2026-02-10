@@ -1,5 +1,5 @@
 import express from "express" ;
-import {middle} from "../middleware/authMiddleware.js" ;
+import {verifyToken} from "../middleware/authMiddleware.js" ;
 import upload from "../middleware/uploadAudio.js" ;
 
 const router = express.Router() ;
@@ -13,17 +13,17 @@ import {
   generateConversationSummary
 }  from "../controllers/chatController.js" ;
 
-router.post("/room" , middle , createRoom) ;
+router.post("/room" , verifyToken , createRoom) ;
 
-router.get("/:roomId" , middle , getMessages)  ;
+router.get("/:roomId" , verifyToken , getMessages)  ;
 
-router.post("/text" ,middle , sendTextMessage); 
+router.post("/text" ,verifyToken , sendTextMessage); 
 
-router.post("/audio" , middle , upload.single("audio") , sendAudioMessage) ;
+router.post("/audio" , verifyToken , upload.single("audio") , sendAudioMessage) ;
 
-router.get("/history/:roomId" , middle , getConversationHistory) ;
+router.get("/history/:roomId" , verifyToken , getConversationHistory) ;
 
-router.post("/summary/:roomId", middle, generateConversationSummary);
+router.post("/summary/:roomId", verifyToken, generateConversationSummary);
 
 
 export default router ;

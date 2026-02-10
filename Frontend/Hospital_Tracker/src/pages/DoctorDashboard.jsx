@@ -3,10 +3,12 @@ import api from "../api/api";
 import { useNavigate } from "react-router-dom";
 import { socket } from "../context/SocketContext";
 import { AuthContext } from "../context/AuthContext";
+import VideoCall from "../components/VideoCall";
 
 export default function DoctorDashboard() {
   const { user } = useContext(AuthContext);
   const [appointments, setAppointments] = useState([]);
+  const [activeCall, setActiveCall] = useState(null); // { patientId, roomId, audioOnly }
   const navigate = useNavigate();
 
   const loadQueue = async () => {

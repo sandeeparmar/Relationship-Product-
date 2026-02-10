@@ -1,7 +1,7 @@
 import express from "express";
 
 const router = express.Router();
-import { middle } from "../middleware/authMiddleware.js";
+import { verifyToken } from "../middleware/authMiddleware.js";
 import {
   bookAppointment,
   confirmAppointment,
@@ -10,14 +10,14 @@ import {
   denyAppointment
 } from "../controllers/appointmentController.js";
 
-router.post("/", middle, bookAppointment);
+router.post("/", verifyToken, bookAppointment);
 
-router.get("/doctor", middle, getDoctorAppointments);
+router.get("/doctor", verifyToken, getDoctorAppointments);
 
-router.patch("/:id/status", middle, updateStatus);
+router.patch("/:id/status", verifyToken, updateStatus);
 
-router.patch("/:id/confirm", middle, confirmAppointment);
+router.patch("/:id/confirm", verifyToken, confirmAppointment);
 
-router.patch("/:id/deny", middle, denyAppointment);
+router.patch("/:id/deny", verifyToken, denyAppointment);
 
 export default router;

@@ -1,4 +1,4 @@
-import {mongoose} from "mongoose" ;
+import mongoose from "mongoose" ;
 
 const messageSchema = new mongoose.Schema( { 
   roomId : {
@@ -32,6 +32,6 @@ const messageSchema = new mongoose.Schema( {
     type : Boolean , 
     default : false 
   }
-} , {timestamp:true}) ;
+} , {timestamps:true}) ;
 
 export const Message = mongoose.model("Message",messageSchema) ;

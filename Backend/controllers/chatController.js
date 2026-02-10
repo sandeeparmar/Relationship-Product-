@@ -49,7 +49,9 @@ export const sendTextMessage = async (req, res) => {
     const receiverId = String(room.doctorId) === String(sender._id) ? room.patientId : room.doctorId;
     const receiver = await User.findById(receiverId);
 
-    const detectedLang = await detectLanguage(req.body.text);
+    // Use sender's preferred language as fallback for detection
+    const senderPreferredLang = sender?.preferredLanguage || "en";
+    const detectedLang = await detectLanguage(req.body.text, senderPreferredLang);
 
     const translated = await translateText(
       req.body.text,

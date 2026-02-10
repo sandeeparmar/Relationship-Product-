@@ -1,4 +1,4 @@
-import {mongoose} from "mongoose" ;
+import mongoose from "mongoose" ;
 
 const idmMetricSchema = new mongoose.Schema({
   metricName : String ,

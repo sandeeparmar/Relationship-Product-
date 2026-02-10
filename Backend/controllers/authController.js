@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import { Doctor } from "../models/Doctor.js";
 
 export const register = async (req, res) => {
-  let { name, email, password, role, phone, preferredLanguage } = req.body;
+  let { name, email, password, role, phone, preferredLanguage, specialization, consultationTime } = req.body;
 
   const check = await User.findOne({ email });
 
@@ -20,8 +20,8 @@ export const register = async (req, res) => {
   if (role === "DOCTOR") {
     await Doctor.create({
       userId: user._id,
-      specialization: "General",
-      consultationTime: 15
+      specialization: specialization || "General",
+      consultationTime: consultationTime || 15
     });
   }
 

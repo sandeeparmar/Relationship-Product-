@@ -5,6 +5,7 @@ import { createServer } from "http";
 import { connectDB } from "./config/db.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 import cookieParser from "cookie-parser";
 import { Server } from "socket.io";
 import chatRoutes from "./routes/chatRoutes.js";
@@ -56,8 +57,25 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("callRoom", (data) => {
+    // Emit to the room (chat room ID)
+    socket.to(data.roomId).emit("incomingCall", {
+      signal: data.signalData,
+      from: data.from,
+      name: data.name,
+      callType: data.callType,
+      callerSocketId: socket.id
+    });
+  });
+
   socket.on("answerCall", (data) => {
     io.to(data.to).emit("callAccepted", data.signal);
+  });
+
+  socket.on("endCall", (data) => {
+    if (data.to) {
+      io.to(data.to).emit("callEnded");
+    }
   });
 
   // Handling ICE candidates if not using simple-peer's internal trickle (simple-peer handles it in signal)
@@ -69,6 +87,7 @@ io.on("connection", (socket) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/uploads", express.static("uploads"));

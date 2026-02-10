@@ -10,7 +10,10 @@ export default function Register() {
     email: "",
     phone: "",
     password: "",
-    role: "PATIENT"
+    role: "PATIENT",
+    preferredLanguage: "en",
+    specialization: "",
+    consultationTime: ""
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -94,6 +97,16 @@ export default function Register() {
               />
             </div>
             <div>
+              <input
+                name="preferredLanguage"
+                type="text"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Preferred Language (e.g., en, hi)"
+                value={formData.preferredLanguage}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
               <select
                 name="role"
                 value={formData.role}
@@ -105,6 +118,32 @@ export default function Register() {
               </select>
             </div>
           </div>
+
+          {formData.role === "DOCTOR" && (
+            <div className="rounded-md shadow-sm -space-y-px mt-4">
+              <div>
+                <input
+                  name="specialization"
+                  type="text"
+                  required
+                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 text-gray-900 dark:text-white dark:bg-gray-700 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="Specialization (e.g., General, Cardiologist)"
+                  value={formData.specialization}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <input
+                  name="consultationTime"
+                  type="text"
+                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 text-gray-900 dark:text-white dark:bg-gray-700 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="Consultation Time (e.g., 15 mins)"
+                  value={formData.consultationTime}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <button
