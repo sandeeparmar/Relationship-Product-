@@ -9,13 +9,12 @@ import IDMPanel from "../components/IDMPanel";
 export default function DoctorDashboard() {
   const { user } = useContext(AuthContext);
   const [appointments, setAppointments] = useState([]);
-  const [activeCall, setActiveCall] = useState(null); // { patientId, roomId, audioOnly }
-  const [expandedPatientId, setExpandedPatientId] = useState(null); // Track which patient's IDM panel is open
+  const [activeCall, setActiveCall] = useState(null);
+  const [expandedPatientId, setExpandedPatientId] = useState(null);
   const navigate = useNavigate();
 
   const loadQueue = async () => {
     try {
-      // route is /doctor/:id but controller ignores ID and uses req.user.id
       const res = await api.get("/appointments/doctor");
       setAppointments(res.data);
     } catch (err) {
@@ -25,17 +24,10 @@ export default function DoctorDashboard() {
 
   useEffect(() => {
     loadQueue();
-    // Use user.id for room if possible, else generic
     const room = user?.id ? String(user.id) : "doctor";
     socket.emit("joinDoctorRoom", room);
-
-    socket.on("queueUpdated", () => {
-      loadQueue();
-    });
-
-    return () => {
-      socket.off("queueUpdated");
-    };
+    socket.on("queueUpdated", () => { loadQueue(); });
+    return () => { socket.off("queueUpdated"); };
   }, [user]);
 
   const updateStatus = async (id, status) => {
@@ -58,91 +50,140 @@ export default function DoctorDashboard() {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "PENDING": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
-      case "BOOKED": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-      case "IN_PROGRESS": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      case "COMPLETED": return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
-      case "CANCELLED": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
-      default: return "bg-gray-100 text-gray-800";
+  const getStatusBadge = (status) => {
+    const map = {
+      PENDING:     "bg-amber-100 text-amber-700 ring-1 ring-amber-300",
+      BOOKED:      "bg-sky-100 text-sky-700 ring-1 ring-sky-300",
+      IN_PROGRESS: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300",
+      COMPLETED:   "bg-slate-100 text-slate-600 ring-1 ring-slate-300",
+      CANCELLED:   "bg-red-100 text-red-700 ring-1 ring-red-300",
+    };
+    return map[status] || "bg-slate-100 text-slate-600";
+  };
+
+  const openChat = async (doctorId, patientId) => {
+    try {
+      const res = await api.post("/chat/room", { doctorId, patientId });
+      navigate(`/chat/${res.data._id}`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to open chat");
     }
   };
 
   const pendingAppointments = appointments.filter(a => a.status === "PENDING");
-  const activeAppointments = appointments.filter(a => ["BOOKED", "IN_PROGRESS"].includes(a.status));
+  const activeAppointments  = appointments.filter(a => ["BOOKED", "IN_PROGRESS"].includes(a.status));
 
   return (
-    <div className="space-y-8">
-      <header>
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Doctor Dashboard</h2>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage your patient appointments and queue</p>
+    <div className="min-h-screen bg-sky-150 px-6 py-10 space-y-12">
+
+      {/* ── Page Header ── */}
+      <header className="flex items-end justify-between border-b border-slate-200 pb-6">
+        <div>
+          <p className="text-xs font-semibold tracking-widest uppercase text-teal-500 mb-1">
+            Doctor Portal
+          </p>
+          <h1 className="text-4xl font-bold text-slate-900 leading-tight">
+            Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Manage your patient appointments and queue
+          </p>
+        </div>
+
+        {/* Stats pills */}
+        <div className="hidden md:flex gap-3">
+          <div className="px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-center">
+            <p className="text-2xl font-bold text-amber-600">{pendingAppointments.length}</p>
+            <p className="text-xs text-amber-500 font-medium">Pending</p>
+          </div>
+          <div className="px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
+            <p className="text-2xl font-bold text-emerald-600">{activeAppointments.length}</p>
+            <p className="text-xs text-emerald-500 font-medium">Active</p>
+          </div>
+        </div>
       </header>
 
-      {/* Pending Requests Section */}
+      {/* ── Pending Requests ── */}
       <section>
-        <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">New Appointment Requests</h3>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-1 h-6 bg-amber-400 rounded-full" />
+          <h2 className="text-xl font-bold text-slate-800">New Appointment Requests</h2>
+          {pendingAppointments.length > 0 && (
+            <span className="ml-auto bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+              {pendingAppointments.length} pending
+            </span>
+          )}
+        </div>
+
         {pendingAppointments.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400 italic">No pending requests.</p>
+          <div className="flex flex-col items-center justify-center py-14 bg-white rounded-2xl border border-dashed border-slate-200">
+            <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+              <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <p className="text-slate-400 text-sm">No pending requests right now.</p>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {pendingAppointments.map(a => (
-              <div key={a._id} className="bg-yellow-50 dark:bg-gray-800 border border-yellow-200 dark:border-yellow-900 shadow rounded-lg p-6 flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-start">
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white">
-                      {a.patientId?.name || "Unknown Patient"}
-                    </h4>
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(a.status)}`}>
+              <div
+                key={a._id}
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col overflow-hidden"
+              >
+                {/* Card top accent */}
+                <div className="h-1.5 bg-gradient-to-r from-amber-400 to-orange-400" />
+
+                <div className="p-5 flex flex-col flex-1">
+                  {/* Patient name + status */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-sm flex-shrink-0">
+                        {(a.patientId?.name || "?")[0].toUpperCase()}
+                      </div>
+                      <h3 className="text-base font-semibold text-slate-900 leading-tight">
+                        {a.patientId?.name || "Unknown Patient"}
+                      </h3>
+                    </div>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${getStatusBadge(a.status)}`}>
                       {a.status}
                     </span>
                   </div>
-                  <div className="mt-4 space-y-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Phone: <span className="font-semibold">{a.patientId?.phone || "N/A"}</span></p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Reason: <span className="font-semibold italic">{a.reason || "General Consultation"}</span></p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Date: <span className="font-semibold">{a.date}</span> | {a.timeSlot}</p>
+
+                  {/* Details */}
+                  <div className="space-y-1.5 mb-5 flex-1">
+                    <InfoRow label="Phone"  value={a.patientId?.phone || "N/A"} />
+                    <InfoRow label="Reason" value={a.reason || "General Consultation"} italic />
+                    <InfoRow label="Date"   value={`${a.date}  ·  ${a.timeSlot}`} />
                   </div>
-                </div>
-                <div className="mt-6 space-y-3">
-                  <div className="flex space-x-2">
+
+                  {/* Actions */}
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => confirmAppointment(a._id)}
+                        className="flex-1 py-2 text-sm font-semibold rounded-xl bg-teal-600 hover:bg-teal-700 text-white transition-colors"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => updateStatus(a._id, "CANCELLED")}
+                        className="flex-1 py-2 text-sm font-semibold rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors"
+                      >
+                        Deny
+                      </button>
+                    </div>
                     <button
-                      onClick={() => confirmAppointment(a._id)}
-                      className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      onClick={() => {
+                        if (!user?.id) { alert("User not loaded yet"); return; }
+                        openChat(user.id, a.patientId);
+                      }}
+                      className="w-full py-2 text-sm font-semibold rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
                     >
-                      Confirm
-                    </button>
-                    <button
-                      onClick={() => updateStatus(a._id, "CANCELLED")}
-                      className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                    >
-                      Deny
+                      Chat with Patient
                     </button>
                   </div>
-                  <button
-                    onClick={async () => {
-                      try {
-                        if (!user || !user.id) {
-                          alert("User not loaded yet");
-                          return;
-                        }
-
-                        const res = await api.post("/chat/room", {
-                          doctorId: user.id,
-                          patientId: a.patientId
-                        });
-
-                        console.log(res.data._id);
-                        navigate(`/chat/${res.data._id}`);
-
-                      } catch (err) {
-                        console.error(err);
-                        alert("Failed to open chat");
-                      }
-                    }}
-                    className="w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 dark:border-gray-600"
-                  >
-                    Chat with Patient
-                  </button>
                 </div>
               </div>
             ))}
@@ -150,81 +191,115 @@ export default function DoctorDashboard() {
         )}
       </section>
 
-      {/* Active Queue Section */}
+      {/* ── Active Queue ── */}
       <section>
-        <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Active Queue</h3>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-1 h-6 bg-teal-400 rounded-full" />
+          <h2 className="text-xl font-bold text-slate-800">Active Queue</h2>
+          {activeAppointments.length > 0 && (
+            <span className="ml-auto bg-teal-100 text-teal-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+              {activeAppointments.length} active
+            </span>
+          )}
+        </div>
+
         {activeAppointments.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
-            <p className="text-gray-500 dark:text-gray-400">No active appointments in the queue.</p>
+          <div className="flex flex-col items-center justify-center py-14 bg-white rounded-2xl border border-dashed border-slate-200">
+            <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+              <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-slate-400 text-sm">No active appointments in the queue.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {activeAppointments.map(a => (
-              <div key={a._id} className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 border border-gray-200 dark:border-gray-700 flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-start">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Queue #{a.queueNumber}</h3>
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(a.status)}`}>
-                      {a.status}
+              <div
+                key={a._id}
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col overflow-hidden"
+              >
+                {/* Card top accent — teal for BOOKED, emerald for IN_PROGRESS */}
+                <div className={`h-1.5 ${a.status === "IN_PROGRESS" ? "bg-gradient-to-r from-emerald-400 to-teal-400" : "bg-gradient-to-r from-sky-400 to-blue-400"}`} />
+
+                <div className="p-5 flex flex-col flex-1">
+                  {/* Queue # + status */}
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-xs font-bold tracking-widest uppercase text-slate-400">
+                      Queue #{a.queueNumber}
+                    </span>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${getStatusBadge(a.status)}`}>
+                      {a.status.replace("_", " ")}
                     </span>
                   </div>
-                  <div className="mt-4 space-y-2">
-                    <h4 className="text-md font-semibold text-gray-800 dark:text-white">
+
+                  {/* Patient name */}
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${a.status === "IN_PROGRESS" ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700"}`}>
+                      {(a.patientId?.name || "?")[0].toUpperCase()}
+                    </div>
+                    <h3 className="text-base font-semibold text-slate-900">
                       {a.patientId?.name || "Unknown Patient"}
-                    </h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Phone: {a.patientId?.phone || "N/A"}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Reason: <span className="italic">{a.reason || "General Consultation"}</span></p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Waiting Time: <span className="font-semibold text-gray-900 dark:text-white">{a.waitingTime} mins</span></p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Date: {a.date} | {a.timeSlot}</p>
+                    </h3>
                   </div>
-                </div>
 
-                <div className="mt-6 flex flex-col space-y-2">
-                  {a.status === "BOOKED" && (
+                  {/* Details */}
+                  <div className="space-y-1.5 mb-5 flex-1">
+                    <InfoRow label="Phone"   value={a.patientId?.phone || "N/A"} />
+                    <InfoRow label="Reason"  value={a.reason || "General Consultation"} italic />
+                    <InfoRow label="Wait"    value={`${a.waitingTime} mins`} highlight />
+                    <InfoRow label="Date"    value={`${a.date}  ·  ${a.timeSlot}`} />
+                  </div>
+
+                  {/* Actions */}
+                  <div className="space-y-2">
+                    {a.status === "BOOKED" && (
+                      <button
+                        onClick={() => updateStatus(a._id, "IN_PROGRESS")}
+                        className="w-full py-2 text-sm font-semibold rounded-xl bg-teal-600 hover:bg-teal-700 text-white transition-colors"
+                      >
+                        Start Consultation
+                      </button>
+                    )}
+
+                    {a.status === "IN_PROGRESS" && (
+                      <button
+                        onClick={() => updateStatus(a._id, "COMPLETED")}
+                        className="w-full py-2 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+                      >
+                        Complete Consultation
+                      </button>
+                    )}
+
                     <button
-                      onClick={() => updateStatus(a._id, "IN_PROGRESS")}
-                      className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      onClick={() => openChat(user.id, a.patientId)}
+                      className="w-full py-2 text-sm font-semibold rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
                     >
-                      Start Consultation
+                      Open Chat
                     </button>
-                  )}
 
-                  {a.status === "IN_PROGRESS" && (
-                    <button
-                      onClick={() => updateStatus(a._id, "COMPLETED")}
-                      className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                    >
-                      Complete Consultation
-                    </button>
-                  )}
-
-                  <button
-                    onClick={async () => {
-                      try {
-                        const res = await api.post("/chat/room", {
-                          doctorId: user.id,
-                          patientId: a.patientId
-                        });
-                        navigate(`/chat/${res.data._id}`);
-                      } catch (err) {
-                        console.error(err);
-                        alert("Failed to open chat");
-                      }
-                    }}
-                    className="w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 dark:border-gray-600"
-                  >
-                    Open Chat
-                  </button>
-
-                  <div className="mt-2">
+                    {/* IDM Toggle */}
                     <button
                       onClick={() => setExpandedPatientId(expandedPatientId === a.patientId?._id ? null : a.patientId?._id)}
-                      className="text-indigo-600 hover:text-indigo-800 text-sm font-medium focus:outline-none"
+                      className="w-full py-2 text-sm font-semibold rounded-xl border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-700 transition-colors flex items-center justify-center gap-1.5"
                     >
-                      {expandedPatientId === a.patientId?._id ? "Hide IDM Panel" : "Manage Disease (IDM)"}
+                      {expandedPatientId === a.patientId?._id ? (
+                        <>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                          Hide IDM Panel
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                          Manage Disease (IDM)
+                        </>
+                      )}
                     </button>
+
                     {expandedPatientId === a.patientId?._id && (
-                      <IDMPanel patientId={a.patientId?._id} patientName={a.patientId?.name} />
+                      <div className="mt-1 rounded-xl border border-slate-200 overflow-hidden">
+                        <IDMPanel patientId={a.patientId?._id} patientName={a.patientId?.name} />
+                      </div>
                     )}
                   </div>
                 </div>
@@ -233,6 +308,17 @@ export default function DoctorDashboard() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function InfoRow({ label, value, italic, highlight }) {
+  return (
+    <div className="flex items-baseline gap-1.5 text-sm">
+      <span className="text-slate-400 font-medium w-14 flex-shrink-0">{label}</span>
+      <span className={`${italic ? "italic" : ""} ${highlight ? "font-bold text-slate-900" : "text-slate-600"} truncate`}>
+        {value}
+      </span>
     </div>
   );
 }
