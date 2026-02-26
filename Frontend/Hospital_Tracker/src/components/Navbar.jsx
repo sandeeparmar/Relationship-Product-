@@ -21,9 +21,10 @@ export default function Navbar() {
                     {/* ── Logo ── */}
                     <Link to={dashboardPath} className="flex items-center gap-2.5 group">
                         <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                            </svg>
+                            <img  src="/MediConnect.png" 
+                                  alt="MediConnect Logo" 
+                                  className="w-6 h-6 object-contain" 
+                            />
                         </div>
                         <span className="text-base font-bold text-slate-900 tracking-tight group-hover:text-teal-600 transition-colors">
                             Medi<span className="text-teal-500">Connect</span>
