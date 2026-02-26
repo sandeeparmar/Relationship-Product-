@@ -4,11 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { socket } from "../context/SocketContext";
 import { AuthContext } from "../context/AuthContext";
 import VideoCall from "../components/VideoCall";
+import IDMPanel from "../components/IDMPanel";
 
 export default function DoctorDashboard() {
   const { user } = useContext(AuthContext);
   const [appointments, setAppointments] = useState([]);
   const [activeCall, setActiveCall] = useState(null); // { patientId, roomId, audioOnly }
+  const [expandedPatientId, setExpandedPatientId] = useState(null); // Track which patient's IDM panel is open
   const navigate = useNavigate();
 
   const loadQueue = async () => {
@@ -119,11 +121,19 @@ export default function DoctorDashboard() {
                   <button
                     onClick={async () => {
                       try {
+                        if (!user || !user.id) {
+                          alert("User not loaded yet");
+                          return;
+                        }
+
                         const res = await api.post("/chat/room", {
                           doctorId: user.id,
                           patientId: a.patientId
                         });
+
+                        console.log(res.data._id);
                         navigate(`/chat/${res.data._id}`);
+
                       } catch (err) {
                         console.error(err);
                         alert("Failed to open chat");
@@ -205,6 +215,18 @@ export default function DoctorDashboard() {
                   >
                     Open Chat
                   </button>
+
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setExpandedPatientId(expandedPatientId === a.patientId?._id ? null : a.patientId?._id)}
+                      className="text-indigo-600 hover:text-indigo-800 text-sm font-medium focus:outline-none"
+                    >
+                      {expandedPatientId === a.patientId?._id ? "Hide IDM Panel" : "Manage Disease (IDM)"}
+                    </button>
+                    {expandedPatientId === a.patientId?._id && (
+                      <IDMPanel patientId={a.patientId?._id} patientName={a.patientId?.name} />
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

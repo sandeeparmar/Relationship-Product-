@@ -39,6 +39,12 @@ export default function PatientDashboard() {
     try {
       const res = await api.post("/appointments/", formData);
       setAppointment(res.data.appointment || res.data);
+      setFormData({
+        doctorId: "",
+        date: "",
+        timeSlot: "",
+        reason: ""
+      });
       alert("Appointment booked successfully!");
     } catch (err) {
       alert(err.response?.data?.message || "Booking failed");

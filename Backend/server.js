@@ -10,6 +10,8 @@ import cookieParser from "cookie-parser";
 import { Server } from "socket.io";
 import chatRoutes from "./routes/chatRoutes.js";
 import doctorRoutes from "./routes/doctorRoutes.js";
+import idmRoutes from "./routes/idmRoutes.js";
+import odmRoutes from "./routes/odmRoutes.js";
 dotenv.config();
 connectDB();
 
@@ -92,6 +94,8 @@ app.use("/api/appointments", appointmentRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/uploads", express.static("uploads"));
 app.use("/api/doctors", doctorRoutes);
+app.use("/api/idm", idmRoutes);
+app.use("/api/odm", odmRoutes);
 
 server.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);

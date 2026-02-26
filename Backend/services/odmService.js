@@ -1,4 +1,4 @@
-import {xmlbuilder} from "xmlbuilder" ;
+import xmlbuilder from "xmlbuilder" ;
 
 export const generateODM = (patient , encounters) => {  
   const odm = xmlbuilder.create("ODM")  ;

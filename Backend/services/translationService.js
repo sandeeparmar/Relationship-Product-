@@ -1,10 +1,9 @@
 import 'dotenv/config';
 
 const HF_API_KEY = process.env.HF_API_KEY;
-const MODEL_ID = "facebook/m2m100_418M";
-const TRANSLATION_TIMEOUT = 15000; // 15 seconds timeout
+const MODEL_ID = "facebook/nllb-200-distilled-600M";
+const TRANSLATION_TIMEOUT = 5000; 
 
-// Cache for translations
 const translationCache = new Map();
 
 // Simple language code mapping for common languages
@@ -79,27 +78,14 @@ export const translateText = async (text, fromLang, toLang) => {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      // Handle specific error codes gracefully
-      if (response.status === 410) {
-        console.warn("HF Translation Model (410 Gone) - API endpoint unavailable. Returning original text.");
-        return text;
-      }
-      if (response.status === 503) {
-        console.warn("HF Model loading (503). Returning original text.");
-        return text;
-      }
-      if (response.status === 429) {
-        console.warn("HF API rate limited (429). Returning original text.");
-        return text;
-      }
-      throw new Error(`HF API Error: ${response.status} ${response.statusText}`);
+      // Silently fail for common API issues on free tier
+      return text;
     }
 
     const result = await response.json();
-    
+
     // Check for API errors in response
     if (result.error) {
-      console.warn("HF API returned error:", result.error);
       return text;
     }
 
@@ -113,8 +99,7 @@ export const translateText = async (text, fromLang, toLang) => {
     translationCache.set(cacheKey, translation);
     return translation;
   } catch (error) {
-    console.error("Translation error:", error.message);
-    // Return original text on any error
+    // Silently fail on error to avoid noise
     return text;
   }
 };
