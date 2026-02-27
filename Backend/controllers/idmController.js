@@ -2,14 +2,10 @@ import { diseaseSchema as DiseaseProgram } from "../models/DiseaseProgram.js";
 import { idmMetric as IDMMetric } from "../models/IDMMetric.js";
 import { User } from "../models/User.js";
 
-// --- Disease Program Management ---
-
-// Create a new disease program for a patient
 export const createProgram = async (req, res) => {
     try {
         const { diseaseName, patientId, carePlan, status } = req.body;
 
-        // Check if program already exists for this disease and patient
         const existingProgram = await DiseaseProgram.findOne({ diseaseName, patientId });
         if (existingProgram) {
             return res.status(400).json({ message: "Program for this disease already exists for the patient." });
@@ -30,7 +26,6 @@ export const createProgram = async (req, res) => {
     }
 };
 
-// Get all programs for a specific patient
 export const getPatientPrograms = async (req, res) => {
     try {
         const { patientId } = req.params;
@@ -41,7 +36,6 @@ export const getPatientPrograms = async (req, res) => {
     }
 };
 
-// Update a program (e.g., update care plan or status)
 export const updateProgram = async (req, res) => {
     try {
         const { id } = req.params;
@@ -59,9 +53,6 @@ export const updateProgram = async (req, res) => {
     }
 };
 
-// --- IDM Metrics Management ---
-
-// Add a new metric entry (e.g. blood sugar level, blood pressure)
 export const addMetric = async (req, res) => {
     try {
         const { metricName, category, value, unit, patientId, disease } = req.body;
@@ -85,7 +76,6 @@ export const addMetric = async (req, res) => {
     }
 };
 
-// Get metrics for a patient (optionally filtered by disease)
 export const getPatientMetrics = async (req, res) => {
     try {
         const { patientId } = req.params;

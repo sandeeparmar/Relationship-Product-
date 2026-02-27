@@ -115,7 +115,6 @@ export default function AudioMessage({ src, isMe = false }) {
               style={{ height: `${h}px` }}
             />
           ))}
-          {/* Invisible seek input layered on top */}
           <input
             type="range"
             min="0"

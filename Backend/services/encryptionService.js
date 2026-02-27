@@ -7,7 +7,6 @@ try {
   if (envKey && envKey.length === 64) {
     key = Buffer.from(envKey, "hex");
   } else if (envKey) {
-    // if length is weird, hash it to get 32 bytes
     console.warn("ENCRYPTION_KEY length is not 64 hex characters. Hashing it to generate 32-byte key.");
     key = crypto.createHash('sha256').update(envKey).digest();
   } else {

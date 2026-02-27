@@ -3,7 +3,6 @@ import 'dotenv/config';
 const HF_API_KEY = process.env.HF_API_KEY;
 const MODEL_ID = "facebook/bart-large-cnn";
 
-// Cache for summaries
 const summaryCache = new Map();
 
 export const generateSummary = async (conversationText) => {
