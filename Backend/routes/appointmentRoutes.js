@@ -7,12 +7,15 @@ import {
   confirmAppointment,
   getDoctorAppointments,
   updateStatus,
-  denyAppointment
+  denyAppointment,
+  getPatientAppointments
 } from "../controllers/appointmentController.js";
 
 router.post("/", verifyToken, bookAppointment);
 
 router.get("/doctor", verifyToken, getDoctorAppointments);
+
+router.get("/patient", verifyToken, getPatientAppointments);
 
 router.patch("/:id/status", verifyToken, updateStatus);
 

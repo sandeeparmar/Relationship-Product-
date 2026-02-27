@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../api/api";
 import { FaHeartbeat, FaFileExport, FaPlus } from "react-icons/fa";
 
-export default function IDMPanel({ patientId, patientName }) {
+export default function IDMPanel({ patientId, patientName, role = "DOCTOR" }) {
     const [programs, setPrograms] = useState([]);
     const [metrics, setMetrics] = useState([]);
     const [showAddProgram, setShowAddProgram] = useState(false);
@@ -89,24 +89,28 @@ export default function IDMPanel({ patientId, patientName }) {
                     <FaHeartbeat className="mr-2 text-red-500" />
                     Disease Management: {patientName}
                 </h3>
-                <button
-                    onClick={handleExportODM}
-                    className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded flex items-center"
-                >
-                    <FaFileExport className="mr-1" /> Export ODM
-                </button>
+                {role === "DOCTOR" && (
+                    <button
+                        onClick={handleExportODM}
+                        className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded flex items-center"
+                    >
+                        <FaFileExport className="mr-1" /> Export ODM
+                    </button>
+                )}
             </div>
 
             {/* Programs Section */}
             <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
                     <h4 className="font-semibold text-gray-700 dark:text-gray-300">Active Programs</h4>
-                    <button
-                        onClick={() => setShowAddProgram(!showAddProgram)}
-                        className="text-xs bg-green-600 text-white px-2 py-1 rounded flex items-center"
-                    >
-                        <FaPlus className="mr-1" /> Add Program
-                    </button>
+                    {role === "DOCTOR" && (
+                        <button
+                            onClick={() => setShowAddProgram(!showAddProgram)}
+                            className="text-xs bg-green-600 text-white px-2 py-1 rounded flex items-center"
+                        >
+                            <FaPlus className="mr-1" /> Add Program
+                        </button>
+                    )}
                 </div>
 
                 {showAddProgram && (
@@ -149,12 +153,14 @@ export default function IDMPanel({ patientId, patientName }) {
             <div>
                 <div className="flex justify-between items-center mb-2">
                     <h4 className="font-semibold text-gray-700 dark:text-gray-300">Health Metrics (IDM)</h4>
-                    <button
-                        onClick={() => setShowAddMetric(!showAddMetric)}
-                        className="text-xs bg-indigo-600 text-white px-2 py-1 rounded flex items-center"
-                    >
-                        <FaPlus className="mr-1" /> Add Metric
-                    </button>
+                    {role === "DOCTOR" && (
+                        <button
+                            onClick={() => setShowAddMetric(!showAddMetric)}
+                            className="text-xs bg-indigo-600 text-white px-2 py-1 rounded flex items-center"
+                        >
+                            <FaPlus className="mr-1" /> Add Metric
+                        </button>
+                    )}
                 </div>
 
                 {showAddMetric && (

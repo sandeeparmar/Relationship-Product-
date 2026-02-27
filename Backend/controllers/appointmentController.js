@@ -103,6 +103,31 @@ export const getDoctorAppointments = async (req, res) => {
   res.json(withWaitingTime);
 };
 
+export const getPatientAppointments = async (req, res) => {
+  if (req.user.role !== "PATIENT") {
+    return res.status(403).json({ message: "Access Denied" });
+  }
+
+  try {
+    const appointments = await Appointment.find({
+      patientId: req.user.id
+    })
+      .sort({ date: 1, timeSlot: 1 })
+      .populate({
+        path: "doctorId",
+        populate: {
+          path: "userId",
+          select: "name email phone"
+        }
+      });
+
+    res.json(appointments);
+  } catch (err) {
+    console.error("Error fetching patient appointments:", err);
+    res.status(500).json({ message: "Failed to fetch appointments" });
+  }
+};
+
 export const updateStatus = async (req, res) => {
 
   const session = await mongoose.startSession();
