@@ -2,28 +2,33 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import { createServer } from "http";
+import cookieParser from "cookie-parser";
+import { Server } from "socket.io";
+
 import { connectDB } from "./config/db.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
-import cookieParser from "cookie-parser";
-import { Server } from "socket.io";
 import chatRoutes from "./routes/chatRoutes.js";
 import doctorRoutes from "./routes/doctorRoutes.js";
 import idmRoutes from "./routes/idmRoutes.js";
 import odmRoutes from "./routes/odmRoutes.js";
-dotenv.config();
-connectDB();
+
+dotenv.config(); // used for env file 
+connectDB(); // function call for an database connection 
 
 const app = express();
+
 app.use(cors({
   origin: "http://localhost:5173",
   credentials: true
 }));
+
 app.use(express.json());
 app.use(cookieParser());
 
-const server = createServer(app);
+const server = createServer(app); // create an http server 
+
 const io = new Server(server, {
   cors: {
     origin: "http://localhost:5173",
@@ -40,15 +45,16 @@ io.on("connection", (socket) => {
   socket.on("joinDoctorRoom", (doctorId) => {
     socket.join(doctorId);
   });
+
+
   socket.on("joinChatRoom", (roomId) => {
     socket.join(roomId);
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", (roomId) => {
     console.log("User Disconnected");
-    socket.broadcast.emit("callEnded");
+    socket.to(roomId).emit("callEnded"); // end call for  just this room 
   });
-
 
   // WebRTC Signaling Events
   socket.on("callUser", (data) => {
@@ -79,13 +85,6 @@ io.on("connection", (socket) => {
       io.to(data.to).emit("callEnded");
     }
   });
-
-  // Handling ICE candidates if not using simple-peer's internal trickle (simple-peer handles it in signal)
-  // But usually straightforward simple-peer usage encapsulates this in the signal data.
-  // If we need manual ICE handling:
-  // socket.on("ice-candidate", (data) => {
-  //   io.to(data.to).emit("ice-candidate", data.candidate);
-  // });
 });
 
 app.use("/api/auth", authRoutes);

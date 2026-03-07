@@ -5,18 +5,18 @@ import { Doctor } from "../models/Doctor.js";
 
 export const register = async (req, res) => {
   let { name, email, password, role, phone, preferredLanguage, specialization, consultationTime } = req.body;
-
+  
   const check = await User.findOne({ email });
-
+  
   if (check) {
     return res.status(409).json({ message: "Already Registered this email" });
   }
-
+  
   const hashedPassword = await bcrypt.hash(password, 10);
   role = role.toUpperCase();
-
+  
   const user = await User.create({ name, email, password: hashedPassword, role, phone, preferredLanguage });
-
+  
   if (role === "DOCTOR") {
     await Doctor.create({
       userId: user._id,
@@ -24,17 +24,16 @@ export const register = async (req, res) => {
       consultationTime: consultationTime || 15
     });
   }
-
-
-
+  
   res.status(201).json({ message: "User Registered" });
 };
 
 export const login = async (req, res) => {
+  
   const { email, password } = req.body;
-
+  
   const user = await User.findOne({ email });
-
+  
   if (!user) return res.status(400).json({ message: "Invalid Credentials" });
 
   const isMatch = await bcrypt.compare(password, user.password);
