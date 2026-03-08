@@ -46,6 +46,10 @@ io.on("connection", (socket) => {
     socket.join(doctorId);
   });
 
+  socket.on("joinPatientRoom", (patientId) => {
+    socket.join(patientId);
+  });
+
 
   socket.on("joinChatRoom", (roomId) => {
     socket.join(roomId);

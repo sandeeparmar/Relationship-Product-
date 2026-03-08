@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useContext } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { socket } from "../context/SocketContext";
 import api from "../api/api";
 import AudioRecorder from "../components/AudioRecorder";
@@ -9,6 +9,9 @@ import { AuthContext } from "../context/AuthContext";
 
 export default function Chat() {
   const { roomId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const appointmentId = location.state?.appointmentId;
   const { user } = useContext(AuthContext);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
@@ -72,6 +75,18 @@ export default function Chat() {
     } catch (err) {
       console.error("Failed to generate summary", err);
       alert("Failed to generate summary");
+    }
+  };
+
+  const handleCompleteConsultation = async () => {
+    if (!appointmentId) return;
+    try {
+      await api.patch(`/appointments/${appointmentId}/status`, { status: "COMPLETED" });
+      alert("Consultation Completed!");
+      navigate("/doctor");
+    } catch (err) {
+      console.error("Failed to complete consultation", err);
+      alert("Failed to complete consultation. It might already be completed.");
     }
   };
 
@@ -235,6 +250,17 @@ export default function Chat() {
         .btn-summary:hover {
           background: var(--teal-light);
           border-color: var(--teal-light);
+        }
+
+        .btn-complete {
+          background: #059669; /* emerald-600 */
+          color: white;
+          border-color: #059669;
+          padding: 0.45rem 1rem;
+        }
+        .btn-complete:hover {
+          background: #10b981; /* emerald-500 */
+          border-color: #10b981;
         }
 
         .messages-area {
@@ -519,6 +545,15 @@ export default function Chat() {
           <div className="header-actions">
             {user?.role === "DOCTOR" && (
               <>
+                {appointmentId && (
+                  <button onClick={handleCompleteConsultation} className="btn-call btn-complete">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M5 13l4 4L19 7" />
+                    </svg>
+                    Complete
+                  </button>
+                )}
                 <button onClick={() => startCall("AUDIO")} className="btn-call btn-voice">
                   <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

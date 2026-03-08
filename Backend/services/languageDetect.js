@@ -1,9 +1,5 @@
 import 'dotenv/config';
 
-const HF_API_KEY = process.env.HF_API_KEY;
-const MODEL_ID = "facebook/fasttext-language-identification";
-const MODEL_TIMEOUT = 10000; // 10 seconds timeout
-
 // Simple language detection based on common characters
 const detectLanguageByCharacters = (text) => {
   if (!text) return "en";
@@ -24,69 +20,71 @@ const detectLanguageByCharacters = (text) => {
   if (devangariCount > text.length * 0.1) return "hi";
   if (cyrillicCount > text.length * 0.1) return "ru";
 
-  return null; // Could not detect from characters
+  return null;
 };
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const DETECTION_TIMEOUT = 5000;
 
 export const detectLanguage = async (text, userPreferredLanguage = "en") => {
   try {
     if (!text || text.trim().length === 0) return userPreferredLanguage || "en";
 
-    // First try character-based detection (fast and reliable)
     const charBasedLang = detectLanguageByCharacters(text);
     if (charBasedLang) {
       console.log(`Language detected (character-based): ${charBasedLang}`);
       return charBasedLang;
     }
 
-    // If HF API is not available, use user's preferred language
-    if (!HF_API_KEY) {
-      console.warn("HF_API_KEY not set. Using user's preferred language or defaulting to 'en'.");
+    if (!GEMINI_API_KEY) {
+      console.warn("GEMINI_API_KEY not set. Using preferred language.");
       return userPreferredLanguage || "en";
     }
 
-    // Try HF API with timeout
+    const prompt = `Detect the language of the following text and return ONLY its 2-letter ISO 639-1 language code (e.g., "en", "es", "fr", "hi"). Do not return anything else. Text: "${text}"`;
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), MODEL_TIMEOUT);
+    const timeoutId = setTimeout(() => controller.abort(), DETECTION_TIMEOUT);
 
     const response = await fetch(
-      `https://api-inference.huggingface.co/models/${MODEL_ID}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
+        method: 'POST',
         headers: {
-          Authorization: `Bearer ${HF_API_KEY}`,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json'
         },
-        method: "POST",
-        body: JSON.stringify({ inputs: text }),
-        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
+          generationConfig: {
+            temperature: 0.1,
+          }
+        }),
+        signal: controller.signal
       }
     );
 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      // Handle specific error codes gracefully
-      if (response.status === 410) {
-        console.info("HF Model (410 Gone) - API endpoint unavailable. Falling back to user preferred language/en.");
-        return userPreferredLanguage || "en";
-      }
-      if (response.status === 503) {
-        console.warn("HF Model loading (503). Using user's preferred language.");
-        return userPreferredLanguage || "en";
-      }
       if (response.status === 429) {
-        console.warn("HF API rate limited (429). Using user's preferred language.");
-        return userPreferredLanguage || "en";
+        console.warn("Gemini API Rate Limit Exceeded (429) for detection. Using preferred language.");
+      } else {
+        console.error("Gemini Detection Error Status: ", response.status);
       }
-      throw new Error(`HF API Error: ${response.status} ${response.statusText}`);
+      return userPreferredLanguage || "en";
     }
 
     const result = await response.json();
 
-    if (Array.isArray(result) && result.length > 0 && Array.isArray(result[0])) {
-      const topResult = result[0][0];
-      return topResult.label || userPreferredLanguage || "en";
-    } else if (Array.isArray(result) && result.length > 0 && result[0].label) {
-      return result[0].label || userPreferredLanguage || "en";
+    if (result.candidates && result.candidates.length > 0) {
+      let code = result.candidates[0].content.parts[0].text.trim().toLowerCase();
+      // Remove any quotes or punctuation Gemini might have added
+      code = code.replace(/[^a-z]/g, '');
+      if (code.length === 2 || code.length === 3) {
+        return code;
+      }
     }
 
     return userPreferredLanguage || "en";

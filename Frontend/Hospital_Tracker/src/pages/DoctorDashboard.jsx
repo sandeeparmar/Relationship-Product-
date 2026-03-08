@@ -52,19 +52,20 @@ export default function DoctorDashboard() {
 
   const getStatusBadge = (status) => {
     const map = {
-      PENDING:     "bg-amber-100 text-amber-700 ring-1 ring-amber-300",
-      BOOKED:      "bg-sky-100 text-sky-700 ring-1 ring-sky-300",
+      PENDING: "bg-amber-100 text-amber-700 ring-1 ring-amber-300",
+      BOOKED: "bg-sky-100 text-sky-700 ring-1 ring-sky-300",
       IN_PROGRESS: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300",
-      COMPLETED:   "bg-slate-100 text-slate-600 ring-1 ring-slate-300",
-      CANCELLED:   "bg-red-100 text-red-700 ring-1 ring-red-300",
+      COMPLETED: "bg-slate-100 text-slate-600 ring-1 ring-slate-300",
+      CANCELLED: "bg-red-100 text-red-700 ring-1 ring-red-300",
     };
     return map[status] || "bg-slate-100 text-slate-600";
   };
 
-  const openChat = async (doctorId, patientId) => {
+  const openChat = async (doctorId, patientId, appointmentId = null) => {
     try {
       const res = await api.post("/chat/room", { doctorId, patientId });
-      navigate(`/chat/${res.data._id}`);
+      // Pass the appointmentId in route state so Chat.jsx knows which appointment to complete
+      navigate(`/chat/${res.data._id}`, { state: { appointmentId } });
     } catch (err) {
       console.error(err);
       alert("Failed to open chat");
@@ -72,7 +73,7 @@ export default function DoctorDashboard() {
   };
 
   const pendingAppointments = appointments.filter(a => a.status === "PENDING");
-  const activeAppointments  = appointments.filter(a => ["BOOKED", "IN_PROGRESS"].includes(a.status));
+  const activeAppointments = appointments.filter(a => ["BOOKED", "IN_PROGRESS"].includes(a.status));
 
   return (
     <div className="min-h-screen bg-sky-150 px-6 py-10 space-y-12">
@@ -153,9 +154,9 @@ export default function DoctorDashboard() {
 
                   {/* Details */}
                   <div className="space-y-1.5 mb-5 flex-1">
-                    <InfoRow label="Phone"  value={a.patientId?.phone || "N/A"} />
+                    <InfoRow label="Phone" value={a.patientId?.phone || "N/A"} />
                     <InfoRow label="Reason" value={a.reason || "General Consultation"} italic />
-                    <InfoRow label="Date"   value={`${a.date}  ·  ${a.timeSlot}`} />
+                    <InfoRow label="Date" value={`${a.date}  ·  ${a.timeSlot}`} />
                   </div>
 
                   {/* Actions */}
@@ -177,7 +178,7 @@ export default function DoctorDashboard() {
                     <button
                       onClick={() => {
                         if (!user?.id) { alert("User not loaded yet"); return; }
-                        openChat(user.id, a.patientId);
+                        openChat(user.id, a.patientId, a._id);
                       }}
                       className="w-full py-2 text-sm font-semibold rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
                     >
@@ -245,10 +246,10 @@ export default function DoctorDashboard() {
 
                   {/* Details */}
                   <div className="space-y-1.5 mb-5 flex-1">
-                    <InfoRow label="Phone"   value={a.patientId?.phone || "N/A"} />
-                    <InfoRow label="Reason"  value={a.reason || "General Consultation"} italic />
-                    <InfoRow label="Wait"    value={`${a.waitingTime} mins`} highlight />
-                    <InfoRow label="Date"    value={`${a.date}  ·  ${a.timeSlot}`} />
+                    <InfoRow label="Phone" value={a.patientId?.phone || "N/A"} />
+                    <InfoRow label="Reason" value={a.reason || "General Consultation"} italic />
+                    <InfoRow label="Wait" value={`${a.waitingTime} mins`} highlight />
+                    <InfoRow label="Date" value={`${a.date}  ·  ${a.timeSlot}`} />
                   </div>
 
                   {/* Actions */}
@@ -272,7 +273,7 @@ export default function DoctorDashboard() {
                     )}
 
                     <button
-                      onClick={() => openChat(user.id, a.patientId)}
+                      onClick={() => openChat(user.id, a.patientId, a._id)}
                       className="w-full py-2 text-sm font-semibold rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
                     >
                       Open Chat

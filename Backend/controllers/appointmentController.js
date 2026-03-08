@@ -279,6 +279,18 @@ export const confirmAppointment = async (req, res) => {
     console.error("Failed to send confirmation email:", emailErr);
   }
 
+  // Emit Socket Notification to Patient
+  try {
+    const io = req.app.get("io");
+    if (appointment.patientId && appointment.patientId._id) {
+      io.to(String(appointment.patientId._id)).emit("appointmentConfirmed", {
+        message: `Your appointment on ${appointment.date} at ${appointment.timeSlot} has been confirmed. Please join the chat at your allocated time.`
+      });
+    }
+  } catch (socketErr) {
+    console.error("Failed to emit confirmation socket event:", socketErr);
+  }
+
   res.json({
     message: "Appointment confirmed",
     appointment

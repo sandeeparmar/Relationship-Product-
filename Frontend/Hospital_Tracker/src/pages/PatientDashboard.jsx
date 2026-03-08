@@ -2,6 +2,7 @@ import { useEffect, useState, useContext } from "react";
 import api from "../api/api";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { socket } from "../context/SocketContext";
 import IDMPanel from "../components/IDMPanel";
 
 export default function PatientDashboard() {
@@ -11,6 +12,8 @@ export default function PatientDashboard() {
   const [appointment, setAppointment] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showAllAppointments, setShowAllAppointments] = useState(false);
+  const [notification, setNotification] = useState(null);
   const navigate = useNavigate();
 
   const loadAppointments = async () => {
@@ -27,25 +30,55 @@ export default function PatientDashboard() {
     loadAppointments();
   }, []);
 
+  useEffect(() => {
+    if (user?.id) {
+      socket.emit("joinPatientRoom", String(user.id));
+      socket.on("appointmentConfirmed", (data) => {
+        setNotification(data.message);
+        loadAppointments(); // Refresh the list automatically
+        // Auto-hide notification after 10 seconds
+        setTimeout(() => setNotification(null), 10000);
+      });
+    }
+
+    return () => {
+      socket.off("appointmentConfirmed");
+    };
+  }, [user]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const book = async (e) => {
     e.preventDefault();
-    if (!formData.doctorId || !formData.date || !formData.timeSlot) {
+    
+    if (!formData.doctorId || !formData.date || !formData.timeSlot || !formData.reason ) {
       alert("Please fill all fields");
       return;
     }
+
+    const selectedDateTime = new Date(`${formData.date}T${formData.timeSlot}`);
+
+    if (selectedDateTime < new Date()) {
+      alert("Selected time is in the past");
+      return;
+    }
+    
     setLoading(true);
+
     try {
+    
       const res = await api.post("/appointments/", formData);
       setAppointment(res.data.appointment || res.data);
       setFormData({ doctorId: "", date: "", timeSlot: "", reason: "" });
       alert("Appointment booked successfully!");
       loadAppointments();
+    
     } catch (err) {
+    
       alert(err.response?.data?.message || "Booking failed");
+    
     } finally {
       setLoading(false);
     }
@@ -55,6 +88,7 @@ export default function PatientDashboard() {
     if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
     try {
       await api.patch(`/appointments/${id}/deny`);
+    
       loadAppointments();
     } catch (err) {
       alert(err.response?.data?.message || "Failed to cancel appointment");
@@ -71,18 +105,18 @@ export default function PatientDashboard() {
     }
   };
 
-  const openChat = async () => {
-    try {
-      const docProfile = doctors.find(d => d._id === appointment.doctorId);
-      const docUserId = docProfile?.userId?._id || docProfile?.userId;
-      if (!docUserId) { alert("Could not identify doctor user ID"); return; }
-      const res = await api.post("/chat/room", { doctorId: docUserId, patientId: user.id });
-      navigate(`/chat/${res.data._id}`);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to open chat");
-    }
-  };
+  // const openChat = async () => {
+  //   try {
+  //     const docProfile = doctors.find(d => d._id === appointment.doctorId);
+  //     const docUserId = docProfile?.userId?._id || docProfile?.userId;
+  //     if (!docUserId) { alert("Could not identify doctor user ID"); return; }
+  //     const res = await api.post("/chat/room", { doctorId: docUserId, patientId: user.id });
+  //     navigate(`/chat/${res.data._id}`);
+  //   } catch (err) {
+  //     console.error(err);
+  //     alert("Failed to open chat");
+  //   }
+  // };
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-10 space-y-10">
@@ -95,6 +129,26 @@ export default function PatientDashboard() {
         <h1 className="text-4xl font-bold text-slate-900 leading-tight">Dashboard</h1>
         <p className="mt-1 text-sm text-slate-500">Book and manage your appointments</p>
       </header>
+
+      {/* ── Real-time Notification Banner ── */}
+      {notification && (
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl shadow-md p-4 flex items-center gap-4 text-white animate-in slide-in-from-top-4">
+          <div className="bg-white/20 p-2 rounded-full flex-shrink-0">
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium flex-1">{notification}</p>
+          <button
+            onClick={() => setNotification(null)}
+            className="p-1 hover:bg-white/20 rounded-full transition"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* ── Booking Form Card ── */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -244,31 +298,47 @@ export default function PatientDashboard() {
             <p className="text-slate-400 text-sm">You have no appointments booked.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {appointments.map(a => (
-              <div key={a._id} className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col p-5">
-                <div className="flex justify-between items-center mb-3">
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${a.status === "BOOKED" || a.status === "IN_PROGRESS" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                    {a.status}
-                  </span>
-                  <span className="text-xs text-slate-400 font-medium">{a.date} · {a.timeSlot}</span>
-                </div>
-                <h3 className="text-base font-bold text-slate-900 mb-1">Dr. {a.doctorId?.userId?.name || "Unknown"}</h3>
-                <p className="text-xs text-slate-500 mb-4 line-clamp-2">Reason: {a.reason || "N/A"}</p>
-                <div className="mt-auto flex flex-col gap-2">
-                  {['PENDING', 'BOOKED', 'IN_PROGRESS'].includes(a.status) && (
-                    <button onClick={() => cancelAppointment(a._id)} className="w-full py-2 text-sm font-semibold rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition">
-                      Cancel Appointment
-                    </button>
-                  )}
-                  {['BOOKED', 'IN_PROGRESS'].includes(a.status) && (
-                    <button onClick={() => openChatExisting(a.doctorId?.userId?._id || a.doctorId?.userId)} className="w-full py-2 text-sm font-semibold rounded-xl bg-teal-50 text-teal-700 hover:bg-teal-100 transition">
-                      Open Chat Support
-                    </button>
-                  )}
-                </div>
+          <div className="flex flex-col gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {[...appointments]
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .slice(0, showAllAppointments ? appointments.length : 10)
+                .map(a => (
+                  <div key={a._id} className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col p-5">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${a.status === "BOOKED" || a.status === "IN_PROGRESS" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                        {a.status}
+                      </span>
+                      <span className="text-xs text-slate-400 font-medium">{a.date} · {a.timeSlot}</span>
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900 mb-1">Dr. {a.doctorId?.userId?.name || "Unknown"}</h3>
+                    <p className="text-xs text-slate-500 mb-4 line-clamp-2">Reason: {a.reason || "N/A"}</p>
+                    <div className="mt-auto flex flex-col gap-2">
+                      {['PENDING', 'BOOKED', 'IN_PROGRESS'].includes(a.status) && (
+                        <button onClick={() => cancelAppointment(a._id)} className="w-full py-2 text-sm font-semibold rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition">
+                          Cancel Appointment
+                        </button>
+                      )}
+                      {['BOOKED', 'IN_PROGRESS'].includes(a.status) && (
+                        <button onClick={() => openChatExisting(a.doctorId?.userId?._id || a.doctorId?.userId)} className="w-full py-2 text-sm font-semibold rounded-xl bg-teal-50 text-teal-700 hover:bg-teal-100 transition">
+                          Open Chat Support
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            {appointments.length > 10 && (
+              <div className="flex justify-center mt-4">
+                <button
+                  onClick={() => setShowAllAppointments(!showAllAppointments)}
+                  className="px-6 py-2.5 text-sm font-semibold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors"
+                >
+                  {showAllAppointments ? "View Less" : `View All ${appointments.length} Appointments`}
+                </button>
               </div>
-            ))}
+            )}
           </div>
         )}
       </section>

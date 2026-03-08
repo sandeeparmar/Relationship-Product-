@@ -7,7 +7,7 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
   const [email, setEmail] = useState("23btc193@ietdavv.edu.in");
-  const [password, setPassword] = useState("password123");
+  const [password, setPassword] = useState("password@123");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 

@@ -15,18 +15,17 @@ const transporter = nodemailer.createTransport({
 export const sendEmail = async (to, subject, text, html) => {
     try {
         const info = await transporter.sendMail({
-            from: `"Hospital Tracker" <${process.env.SEND_EMAIL_USERNAME}>`, // sender address
-            to, // list of receivers
-            subject, // Subject line
-            text, // plain text body
-            html // html body
+            from: `"Notification from Telemedicine Platform" <${process.env.SEND_EMAIL_USERNAME}>`, 
+            to, 
+            subject, 
+            text, 
+            html 
         });
-
-        console.log("Message sent: %s", info.messageId);
+        
         return info;
+
     } catch (error) {
         console.error("Error sending email: ", error);
-        // Don't throw to prevent blocking the main flow, just log it
         return null;
     }
 };

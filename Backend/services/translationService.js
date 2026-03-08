@@ -1,33 +1,33 @@
 import 'dotenv/config';
+import fs from 'fs';
 
-const HF_API_KEY = process.env.HF_API_KEY;
-const MODEL_ID = "facebook/nllb-200-distilled-600M";
-const TRANSLATION_TIMEOUT = 5000; 
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const TRANSLATION_TIMEOUT = 10000;
 
 const translationCache = new Map();
 
-// Simple language code mapping for common languages
+// Simple language code mapping for common languages 
 const languageCodeMap = {
-  'en': 'en',
-  'es': 'es',
-  'fr': 'fr',
-  'de': 'de',
-  'it': 'it',
-  'pt': 'pt',
-  'ru': 'ru',
-  'ja': 'ja',
-  'zh': 'zh',
-  'ar': 'ar',
-  'hi': 'hi',
-  'bn': 'bn',
-  'pa': 'pa',
-  'ur': 'ur',
-  'ko': 'ko',
-  'th': 'th',
-  'tr': 'tr',
-  'pl': 'pl',
-  'nl': 'nl',
-  'vi': 'vi'
+  'en': 'English',
+  'es': 'Spanish',
+  'fr': 'French',
+  'de': 'German',
+  'it': 'Italian',
+  'pt': 'Portuguese',
+  'ru': 'Russian',
+  'ja': 'Japanese',
+  'zh': 'Chinese',
+  'ar': 'Arabic',
+  'hi': 'Hindi',
+  'bn': 'Bengali',
+  'pa': 'Punjabi',
+  'ur': 'Urdu',
+  'ko': 'Korean',
+  'th': 'Thai',
+  'tr': 'Turkish',
+  'pl': 'Polish',
+  'nl': 'Dutch',
+  'vi': 'Vietnamese'
 };
 
 export const translateText = async (text, fromLang, toLang) => {
@@ -42,63 +42,72 @@ export const translateText = async (text, fromLang, toLang) => {
       return translationCache.get(cacheKey);
     }
 
-    // If HF API is not available, return original text
-    if (!HF_API_KEY) {
-      console.warn("HF_API_KEY not set. Returning original text.");
+    if (!GEMINI_API_KEY) {
+      console.warn("GEMINI_API_KEY not set. Returning original text.");
       return text;
     }
 
-    // Normalize language codes
-    const normalizedFromLang = languageCodeMap[fromLang] || fromLang;
-    const normalizedToLang = languageCodeMap[toLang] || toLang;
+    const sourceLang = languageCodeMap[fromLang] || fromLang;
+    const targetLang = languageCodeMap[toLang] || toLang;
 
-    // Try HF API with timeout
+    // Construct precise prompt
+    const prompt = `Translate the following text from ${sourceLang} to ${targetLang}. 
+Do not include any explanations, do not wrap in markdown, and do not acknowledge this prompt. 
+Just return the direct translation.
+Text: "${text}"`;
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TRANSLATION_TIMEOUT);
 
     const response = await fetch(
-      `https://api-inference.huggingface.co/models/${MODEL_ID}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
+        method: 'POST',
         headers: {
-          Authorization: `Bearer ${HF_API_KEY}`,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json'
         },
-        method: "POST",
         body: JSON.stringify({
-          inputs: text,
-          parameters: {
-            src_lang: normalizedFromLang,
-            tgt_lang: normalizedToLang
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
+          generationConfig: {
+            temperature: 0.1,
           }
         }),
-        signal: controller.signal,
+        signal: controller.signal
       }
     );
 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      // Silently fail for common API issues on free tier
+      if (response.status === 429) {
+        console.warn("Gemini API Rate Limit Exceeded (429). Falling back to original text.");
+      } else {
+        const errText = await response.text();
+        console.error("Gemini API Error Status: ", response.status, errText);
+      }
       return text;
     }
 
     const result = await response.json();
 
-    // Check for API errors in response
-    if (result.error) {
-      return text;
-    }
-
-    // Result format for seq2seq: [{ generated_text: "..." }]
     let translation = text;
-    if (Array.isArray(result) && result.length > 0 && result[0].generated_text) {
-      translation = result[0].generated_text;
+    if (result.candidates && result.candidates.length > 0) {
+      const outputText = result.candidates[0].content.parts[0].text.trim();
+      translation = outputText;
+
+      // Remove any surrounding quotes that Gemini might add
+      if (translation.startsWith('"') && translation.endsWith('"')) {
+        translation = translation.substring(1, translation.length - 1);
+      }
     }
 
     // Cache the result
     translationCache.set(cacheKey, translation);
     return translation;
   } catch (error) {
+    console.error("Gemini Translation Error Stringified:", String(error));
     // Silently fail on error to avoid noise
     return text;
   }
