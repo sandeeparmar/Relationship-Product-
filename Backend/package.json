@@ -26,6 +26,7 @@
     "nodemailer": "^8.0.1",
     "openai": "^6.18.0",
     "socket.io": "^4.8.3",
+    "validator": "^13.15.26",
     "xmlbuilder": "^15.1.1"
   },
   "devDependencies": {

@@ -23,6 +23,30 @@ export default function Register() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const nameRegex = /^[A-Za-z ]+$/;
+    const phoneRegex = /^[6-9]\d{9}$/;
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+    if(!emailRegex.test(formData.email)){
+      alert("email must be valid") ;
+      return ;
+    }
+    if (!nameRegex.test(formData.name)) {
+      alert("Name must contain only letters");
+      return;
+    }
+    if (formData.password.length < 8) {
+      alert("Password must be at least 8 characters");
+      return;
+    }
+    if (!phoneRegex.test(formData.phone)) {
+      alert("Enter a valid phone number");
+      return;
+    }
+    if (!passwordRegex.test(formData.password)) {
+      alert("Password must contain at least 8 characters including letters and numbers");
+    }
+
     setLoading(true);
     setError("");
     try {
@@ -42,20 +66,17 @@ export default function Register() {
   return (
     <div className="min-h-screen flex bg-slate-50">
 
-      {/* ── Left decorative panel ── */}
       <div className="hidden md:flex md:w-1/2 bg-slate-900 flex-col justify-between p-12 relative overflow-hidden">
-        {/* Decorative circles */}
         <div className="absolute -top-20 -left-20 w-96 h-96 rounded-full border border-teal-400/20" />
         <div className="absolute top-16 left-16 w-56 h-56 rounded-full border border-teal-400/10" />
         <div className="absolute -bottom-32 -right-32 w-[480px] h-[480px] rounded-full border border-teal-400/20" />
         <div className="absolute -bottom-12 -right-12 w-72 h-72 rounded-full border border-teal-400/10" />
 
-        {/* Logo */}
+   
         <span className="relative z-10 text-2xl font-bold tracking-wide text-teal-400">
           Medi<span className="text-white">Connect</span>
         </span>
 
-        {/* Tagline */}
         <div className="relative z-10">
           <h1 className="text-5xl font-bold text-white leading-tight mb-4">
             Join us &{" "}
@@ -67,11 +88,9 @@ export default function Register() {
         </div>
       </div>
 
-      {/* ── Right form section ── */}
       <div className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
 
-          {/* Header */}
           <div className="mb-8">
             <p className="text-xs font-semibold tracking-widest uppercase text-teal-500 mb-2">
               Get started
@@ -83,14 +102,12 @@ export default function Register() {
 
           <form onSubmit={handleRegister} className="space-y-4">
 
-            {/* Error */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
                 {error}
               </div>
             )}
 
-            {/* Role toggle — shown first so doctor fields appear naturally below */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold tracking-widest uppercase text-slate-500">
                 I am a
@@ -113,48 +130,27 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Full Name */}
+
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold tracking-widest uppercase text-slate-500">Full Name</label>
-              <input
-                name="name"
-                type="text"
-                required
-                placeholder="John Doe"
-                value={formData.name}
-                onChange={handleChange}
-                className={inputClass}
-              />
+              <input name="name" type="text" required placeholder="Sandeep Parmar"  value={formData.name} onChange={handleChange} className={inputClass} />
             </div>
 
-            {/* Email */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold tracking-widest uppercase text-slate-500">Email Address</label>
-              <input
-                name="email"
-                type="email"
-                required
-                placeholder="you@example.com"
-                value={formData.email}
-                onChange={handleChange}
-                className={inputClass}
-              />
+              <input name="email" type="email" required placeholder="sandeep@gmail.com"
+                value={formData.email} onChange={handleChange} className={inputClass} />
             </div>
 
-            {/* Phone + Language — side by side */}
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold tracking-widest uppercase text-slate-500">Phone</label>
-                <input
-                  name="phone"
-                  type="tel"
-                  required
-                  placeholder="+91 98765 43210"
-                  value={formData.phone}
+                <input name="phone" type="tel" required placeholder="+91 98765 43210" value={formData.phone}
                   onChange={handleChange}
                   className={inputClass}
                 />
               </div>
+
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold tracking-widest uppercase text-slate-500">Language</label>
                 <input
@@ -168,7 +164,7 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Password */}
+            
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold tracking-widest uppercase text-slate-500">Password</label>
               <input
@@ -182,7 +178,7 @@ export default function Register() {
               />
             </div>
 
-            {/* Doctor-only fields */}
+        
             {formData.role === "DOCTOR" && (
               <div className="space-y-4 pt-2">
                 <div className="flex items-center gap-2 mb-1">
@@ -216,7 +212,7 @@ export default function Register() {
               </div>
             )}
 
-            {/* Submit */}
+         
             <button
               type="submit"
               disabled={loading}
@@ -232,6 +228,8 @@ export default function Register() {
                 </span>
               ) : "Create Account"}
             </button>
+
+
           </form>
 
           {/* Divider */}

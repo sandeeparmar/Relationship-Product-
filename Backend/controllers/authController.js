@@ -2,9 +2,19 @@ import { User } from "../models/User.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { Doctor } from "../models/Doctor.js";
+import validator from "validator" ;
 
 export const register = async (req, res) => {
   let { name, email, password, role, phone, preferredLanguage, specialization, consultationTime } = req.body;
+  
+  if (
+  !validator.isEmail(email) ||
+  !validator.isAlpha(name, 'en-US', { ignore: ' ' }) ||
+  !/^[6-9]\d{9}$/.test(phone) ||
+  !validator.isNumeric(consultationTime)
+) {
+  return res.status(400).json({ message: "Fields must be valid" });
+}
   
   const check = await User.findOne({ email });
   
@@ -32,6 +42,11 @@ export const login = async (req, res) => {
   
   const { email, password } = req.body;
   
+  if (!validator.isEmail(email)) {
+  return res.status(400).json({ message: "Email must be valid" });
+  }
+
+
   const user = await User.findOne({ email });
   
   if (!user) return res.status(400).json({ message: "Invalid Credentials" });

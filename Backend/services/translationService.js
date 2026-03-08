@@ -82,6 +82,7 @@ Text: "${text}"`;
 
     if (!response.ok) {
       if (response.status === 429) {
+        console.log(response) ;
         console.warn("Gemini API Rate Limit Exceeded (429). Falling back to original text.");
       } else {
         const errText = await response.text();

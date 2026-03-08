@@ -62,7 +62,7 @@ export const sendTextMessage = async (req, res) => {
     const encryptedOriginal = encrypt(req.body.text);
     const encryptedTranslated = encrypt(translated);
 
-    const message = await Message.create({
+    const message = await Message.create({ // query
       roomId: room._id,
       senderId: sender._id,
       senderRole: sender.role,
