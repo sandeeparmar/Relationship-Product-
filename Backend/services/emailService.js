@@ -3,9 +3,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com', // Assuming Gmail based on port 465 and common usage
+    host: 'smtp.gmail.com', 
     port: process.env.SEND_EMAIL_PORTNUMBER,
-    secure: true, // true for 465, false for other ports
+    secure: true, 
     auth: {
         user: process.env.SEND_EMAIL_USERNAME,
         pass: process.env.SEND_EMAIL_PASSWORD
