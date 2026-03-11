@@ -28,6 +28,10 @@ const userSchema = new mongoose.Schema({
     preferredLanguage : {
       type : String ,
       default :"en" 
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false
     }
 }) ;
 

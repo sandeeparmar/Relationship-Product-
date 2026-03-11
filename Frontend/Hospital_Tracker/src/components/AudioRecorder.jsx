@@ -1,9 +1,11 @@
 import { useState, useRef } from "react";
+import { useToast } from "../context/ToastContext";
 
 export default function AudioRecorder({ onStop }) {
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorder = useRef(null);
   const chunks = useRef([]);
+  const { showToast } = useToast();
 
   const startRecording = async () => {
     try {
@@ -29,7 +31,7 @@ export default function AudioRecorder({ onStop }) {
       setIsRecording(true);
     } catch (err) {
       console.error("Error accessing microphone:", err);
-      alert("Could not access microphone.");
+      showToast("Could not access microphone.", "error");
     }
   };
 

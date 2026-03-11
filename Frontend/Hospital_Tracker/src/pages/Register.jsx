@@ -1,6 +1,7 @@
 import { useState } from "react";
 import api from "../api/api";
 import { Link, useNavigate } from "react-router-dom";
+import { useToast } from "../context/ToastContext";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -15,7 +16,9 @@ export default function Register() {
     consultationTime: ""
   });
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+  const { showToast } = useToast();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -26,11 +29,11 @@ export default function Register() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const nameRegex = /^[A-Za-z ]+$/;
     if(!emailRegex.test(formData.email)){
-      alert("email must be valid") ;
+      showToast("Email must be valid", "error");
       return ;
     }
     if (!nameRegex.test(formData.name)) {
-      alert("Name must contain only letters");
+      showToast("Name must contain only letters", "error");
       return;
     }
     
@@ -38,10 +41,17 @@ export default function Register() {
 
     setLoading(true);
     setError("");
+    setInfo("");
     try {
-      await api.post("/auth/register", formData);
-      alert("Registration successful. Please login.");
-      navigate("/");
+      const res = await api.post("/auth/register", formData);
+      setInfo(
+        res.data?.message ||
+          "Registration successful. Please check your email to verify your account before logging in."
+      );
+      // Optionally navigate back to login after brief delay
+      setTimeout(() => {
+        navigate("/");
+      }, 1500);
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
     } finally {
@@ -94,6 +104,11 @@ export default function Register() {
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
                 {error}
+              </div>
+            )}
+            {info && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm px-4 py-3 rounded-xl">
+                {info}
               </div>
             )}
 

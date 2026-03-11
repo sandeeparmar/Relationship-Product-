@@ -2,9 +2,11 @@ import { useEffect, useRef, useState, useContext } from "react";
 import Peer from "simple-peer";
 import { socket } from "../context/SocketContext";
 import { AuthContext } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 export default function VideoCall({ roomId, partnerId, isInitiator, onEndCall, audioOnly, incomingSignal, partnerSocketId }) {
     const { user } = useContext(AuthContext);
+    const { showToast } = useToast();
     const [stream, setStream] = useState(null);
     const [callAccepted, setCallAccepted] = useState(false);
     const [callEnded, setCallEnded] = useState(false);
@@ -116,7 +118,7 @@ export default function VideoCall({ roomId, partnerId, isInitiator, onEndCall, a
 
         }).catch(err => {
             console.error("Media Error:", err);
-            alert("Camera/Mic Error: " + err.message);
+            showToast("Camera/Mic Error: " + err.message, "error");
             onEndCall();
         });
 

@@ -15,6 +15,35 @@ export const bookAppointment = async (req, res) => {
   }
   const { doctorId, date, timeSlot, reason } = req.body; // Added reason
 
+  if (!doctorId || !date || !timeSlot || !reason) {
+    return res.status(400).json({
+      message: "doctorId, date, timeSlot and reason are required"
+    });
+  }
+
+  // Validate date and time are in the future and within daytime hours (6 AM–10 PM)
+  const selectedDateTime = new Date(`${date}T${timeSlot}`);
+
+  if (Number.isNaN(selectedDateTime.getTime())) {
+    return res.status(400).json({
+      message: "Invalid date or time format"
+    });
+  }
+
+  const now = new Date();
+  if (selectedDateTime < now) {
+    return res.status(400).json({
+      message: "Selected appointment time is in the past"
+    });
+  }
+
+  const hour = selectedDateTime.getHours();
+  if (hour < 6 || hour > 22) {
+    return res.status(400).json({
+      message: "Appointment time must be between 6:00 AM and 10:00 PM"
+    });
+  }
+
   const existingAppointment = await Appointment.findOne({
     patientId: req.user.id,
     date,

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { socket } from "../context/SocketContext";
 import IDMPanel from "../components/IDMPanel";
+import { useToast } from "../context/ToastContext";
 
 export default function PatientDashboard() {
   const { user } = useContext(AuthContext);
@@ -15,6 +16,7 @@ export default function PatientDashboard() {
   const [showAllAppointments, setShowAllAppointments] = useState(false);
   const [notification, setNotification] = useState(null);
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const loadAppointments = async () => {
     try {
@@ -54,14 +56,14 @@ export default function PatientDashboard() {
     e.preventDefault();
     
     if (!formData.doctorId || !formData.date || !formData.timeSlot || !formData.reason ) {
-      alert("Please fill all fields");
+      showToast("Please fill all fields", "warning");
       return;
     }
 
     const selectedDateTime = new Date(`${formData.date}T${formData.timeSlot}`);
 
     if (selectedDateTime < new Date()) {
-      alert("Selected time is in the past");
+      showToast("Selected time is in the past", "warning");
       return;
     }
     
@@ -72,13 +74,12 @@ export default function PatientDashboard() {
       const res = await api.post("/appointments/", formData);
       setAppointment(res.data.appointment || res.data);
       setFormData({ doctorId: "", date: "", timeSlot: "", reason: "" });
-      alert("Appointment booked successfully!");
+      showToast("Appointment booked successfully!", "success");
       loadAppointments();
     
     } catch (err) {
     
-      alert(err.response?.data?.message || "Booking failed");
-    
+      showToast(err.response?.data?.message || "Booking failed", "error");
     } finally {
       setLoading(false);
     }
@@ -91,7 +92,7 @@ export default function PatientDashboard() {
     
       loadAppointments();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to cancel appointment");
+      showToast(err.response?.data?.message || "Failed to cancel appointment", "error");
     }
   };
 
@@ -101,7 +102,7 @@ export default function PatientDashboard() {
       navigate(`/chat/${res.data._id}`);
     } catch (err) {
       console.error(err);
-      alert("Failed to open chat");
+      showToast("Failed to open chat", "error");
     }
   };
 
@@ -201,6 +202,7 @@ export default function PatientDashboard() {
                 name="date"
                 value={formData.date}
                 onChange={handleChange}
+                min={new Date().toISOString().split("T")[0]}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 focus:bg-white"
               />
             </div>
@@ -210,14 +212,26 @@ export default function PatientDashboard() {
               <label className="text-xs font-semibold tracking-widest uppercase text-slate-500">
                 Time Slot
               </label>
-              <input
-                type="text"
+              <select
                 name="timeSlot"
                 value={formData.timeSlot}
                 onChange={handleChange}
-                placeholder="e.g. 10:00 AM"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm placeholder-slate-300 outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 focus:bg-white"
-              />
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 focus:bg-white"
+              >
+                <option value="">— Select a Time —</option>
+                {Array.from({ length: 17 }).map((_, idx) => {
+                  const hour = 6 + idx; // 6 to 22
+                  const value = `${hour.toString().padStart(2, "0")}:00`;
+                  const displayHour = ((hour + 11) % 12) + 1;
+                  const ampm = hour < 12 ? "AM" : "PM";
+                  const label = `${displayHour}:00 ${ampm}`;
+                  return (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
 
             {/* Reason — full width */}

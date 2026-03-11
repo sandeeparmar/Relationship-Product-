@@ -7,6 +7,7 @@ import AudioMessage from "../components/AudioMessage";
 import VideoCall from "../components/VideoCall";
 import { AuthContext } from "../context/AuthContext";
 import "./Chat.css";
+import { useToast } from "../context/ToastContext";
 
 export default function Chat() {
   const { roomId } = useParams();
@@ -17,6 +18,7 @@ export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const messagesEndRef = useRef(null);
+  const { showToast } = useToast();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -61,16 +63,17 @@ export default function Chat() {
         headers: { "Content-Type": "multipart/form-data" },
       });
     } catch (err) {
-      alert("Failed to send audio message");
+      showToast("Failed to send audio message", "error");
     }
   };
 
   const generateSummary = async () => {
     try {
       const res = await api.post(`/chat/summary/${roomId}`);
-      alert("Summary: " + res.data.summary);
+      showToast("Summary generated successfully", "success");
+      console.log("Conversation summary:", res.data.summary);
     } catch (err) {
-      alert("Failed to generate summary" );
+      showToast("Failed to generate summary", "error");
     }
   };
 
@@ -78,10 +81,10 @@ export default function Chat() {
     if (!appointmentId) return;
     try {
       await api.patch(`/appointments/${appointmentId}/status`, { status: "COMPLETED" });
-      alert("Consultation Completed!");
+      showToast("Consultation marked as completed", "success");
       navigate("/doctor");
     } catch (err) {
-      alert("Failed to complete consultation. It might already be completed.");
+      showToast("Failed to complete consultation. It might already be completed.", "error");
     }
   };
 

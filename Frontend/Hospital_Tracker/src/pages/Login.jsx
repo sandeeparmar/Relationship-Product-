@@ -24,7 +24,8 @@ export default function Login() {
         navigate("/patient");
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      const msg = err.response?.data?.message || "Login failed";
+      setError(msg);
     } finally {
       setLoading(false);
     }

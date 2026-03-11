@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import api from "../api/api";
 import { FaHeartbeat, FaFileExport, FaPlus } from "react-icons/fa";
+import { useToast } from "../context/ToastContext";
 
 export default function IDMPanel({ patientId, patientName, role = "DOCTOR" }) {
     const [programs, setPrograms] = useState([]);
@@ -11,6 +12,7 @@ export default function IDMPanel({ patientId, patientName, role = "DOCTOR" }) {
     // Form states
     const [newProgram, setNewProgram] = useState({ diseaseName: "", status: "ACTIVE", carePlan: "" });
     const [newMetric, setNewMetric] = useState({ metricName: "", value: "", unit: "", category: "QUALITY", disease: "" });
+    const { showToast } = useToast();
 
     useEffect(() => {
         if (patientId) {
@@ -49,7 +51,7 @@ export default function IDMPanel({ patientId, patientName, role = "DOCTOR" }) {
             fetchPrograms();
             setNewProgram({ diseaseName: "", status: "ACTIVE", carePlan: "" });
         } catch (err) {
-            alert("Failed to add program: " + (err.response?.data?.message || err.message));
+            showToast("Failed to add program: " + (err.response?.data?.message || err.message), "error");
         }
     };
 
@@ -64,7 +66,7 @@ export default function IDMPanel({ patientId, patientName, role = "DOCTOR" }) {
             fetchMetrics();
             setNewMetric({ metricName: "", value: "", unit: "", category: "QUALITY", disease: "" });
         } catch (err) {
-            alert("Failed to add metric");
+            showToast("Failed to add metric", "error");
         }
     };
 
@@ -78,7 +80,7 @@ export default function IDMPanel({ patientId, patientName, role = "DOCTOR" }) {
             document.body.appendChild(link);
             link.click();
         } catch (err) {
-            alert("Failed to export ODM");
+            showToast("Failed to export ODM", "error");
         }
     };
 

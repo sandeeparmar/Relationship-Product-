@@ -5,6 +5,7 @@ import { socket } from "../context/SocketContext";
 import { AuthContext } from "../context/AuthContext";
 import VideoCall from "../components/VideoCall";
 import IDMPanel from "../components/IDMPanel";
+import { useToast } from "../context/ToastContext";
 
 export default function DoctorDashboard() {
   const { user } = useContext(AuthContext);
@@ -12,6 +13,7 @@ export default function DoctorDashboard() {
   const [activeCall, setActiveCall] = useState(null);
   const [expandedPatientId, setExpandedPatientId] = useState(null);
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const loadQueue = async () => {
     try {
@@ -35,7 +37,7 @@ export default function DoctorDashboard() {
       await api.patch(`/appointments/${id}/status`, { status });
       loadQueue();
     } catch (err) {
-      alert("Failed to update status");
+      showToast("Failed to update status", "error");
     }
   };
 
@@ -43,10 +45,10 @@ export default function DoctorDashboard() {
     try {
       await api.patch(`/appointments/${id}/confirm`, {});
       loadQueue();
-      alert("Appointment Confirmed!");
+      showToast("Appointment confirmed", "success");
     } catch (err) {
       console.error(err);
-      alert("Failed to confirm appointment");
+      showToast("Failed to confirm appointment", "error");
     }
   };
 
@@ -68,7 +70,7 @@ export default function DoctorDashboard() {
       navigate(`/chat/${res.data._id}`, { state: { appointmentId } });
     } catch (err) {
       console.error(err);
-      alert("Failed to open chat");
+      showToast("Failed to open chat", "error");
     }
   };
 
@@ -177,7 +179,10 @@ export default function DoctorDashboard() {
                     </div>
                     <button
                       onClick={() => {
-                        if (!user?.id) { alert("User not loaded yet"); return; }
+                        if (!user?.id) {
+                          showToast("User not loaded yet", "warning");
+                          return;
+                        }
                         openChat(user.id, a.patientId, a._id);
                       }}
                       className="w-full py-2 text-sm font-semibold rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
