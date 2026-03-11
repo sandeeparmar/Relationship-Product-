@@ -7,7 +7,6 @@ import { sendEmail } from "../services/emailService.js";
 
 export const register = async (req, res) => {
   let { name, email, password, role, phone, preferredLanguage, specialization, consultationTime } = req.body;
-  console.log("damm")  ; 
 
   // if ( !validator.isEmail(email) || !/^[6-9]\d{9}$/.test(phone) ||
   //           !validator.isAlpha(name, 'en-US', { ignore: ' ' }) ||

@@ -1,70 +1,111 @@
-import 'dotenv/config';
+import "dotenv/config";
 
-const HF_API_KEY = process.env.HF_API_KEY;
-const MODEL_ID = "facebook/bart-large-cnn";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const SUMMARY_TIMEOUT = 15000;
 
 const summaryCache = new Map();
 
 export const generateSummary = async (conversationText) => {
   try {
-    if (!HF_API_KEY) {
-      console.warn("HF_API_KEY not set. Returning default summary.");
-      return "Summary generation is not available. Please configure HF_API_KEY.";
+    if (!conversationText || !conversationText.trim()) {
+      return "No conversation content available to summarize.";
     }
 
-    // Check cache
-    const cacheKey = `summary_${conversationText.substring(0, 50)}`;
+    if (!GEMINI_API_KEY) {
+      console.warn("GEMINI_API_KEY not set. Returning default summary.");
+      return "AI summary is not available. Please configure GEMINI_API_KEY.";
+    }
+
+    // Cache key based on first 100 chars
+    const cacheKey = `summary_${conversationText.substring(0, 100)}`;
     if (summaryCache.has(cacheKey)) {
-      console.log("Returning cached summary.");
+      console.log("Returning cached Gemini summary.");
       return summaryCache.get(cacheKey);
     }
 
-    // BART-large-cnn is optimized for summarization. 
-    // We prepending a clear instruction might help, but it's primarily a summarizer.
-    // Truncate if too long (approx check, real tokenization is complex)
-    const truncatedText = conversationText.length > 3000 ? conversationText.substring(0, 3000) : conversationText;
+    const truncatedText =
+      conversationText.length > 4000
+        ? conversationText.substring(0, 4000)
+        : conversationText;
+
+    const prompt = `
+You are a clinical assistant. Read the following doctor–patient conversation and produce a concise, patient-friendly health summary.
+
+Focus on:
+- Main complaints and symptoms
+- Key findings or diagnoses (if any)
+- Important medications, tests, or follow-ups
+
+Use clear, simple language (no more than 1–2 short paragraphs). Do not include any extra commentary or disclaimers.
+
+Conversation:
+${truncatedText}
+`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SUMMARY_TIMEOUT);
 
     const response = await fetch(
-      `https://api-inference.huggingface.co/models/${MODEL_ID}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${HF_API_KEY}`,
           "Content-Type": "application/json",
         },
-        method: "POST",
         body: JSON.stringify({
-          inputs: truncatedText,
-          parameters: {
-            min_length: 50,
-            max_length: 250,
-            do_sample: false
-          }
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 256,
+          },
         }),
+        signal: controller.signal,
       }
     );
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
-      if (response.status === 503) {
-        return "Summary service is currently warming up. Please try again in a moment.";
+      if (response.status === 429) {
+        console.warn(
+          "Gemini API Rate Limit Exceeded (429) for summary. Returning fallback message."
+        );
+        return "Summary service is temporarily busy. Please try again in a moment.";
       }
-      throw new Error(`HF API Error: ${response.status} ${response.statusText}`);
+      const errText = await response.text();
+      console.error(
+        "Gemini Summary Error Status: ",
+        response.status,
+        errText
+      );
+      return "Failed to generate summary. Please try again later.";
     }
 
     const result = await response.json();
-    // Result format: [{ summary_text: "..." }]
 
-    let summary = "Could not generate summary.";
-    if (Array.isArray(result) && result.length > 0 && result[0].summary_text) {
-      summary = result[0].summary_text;
-    } else if (result.error) {
-      throw new Error(result.error);
+    let summary =
+      "Could not generate summary. Please try again later.";
+
+    if (result.candidates && result.candidates.length > 0) {
+      const text =
+        result.candidates[0].content?.parts?.[0]?.text?.trim();
+      if (text) {
+        summary = text;
+        // Strip surrounding quotes if present
+        if (summary.startsWith('"') && summary.endsWith('"')) {
+          summary = summary.substring(1, summary.length - 1);
+        }
+      }
     }
 
-    // Cache the result
     summaryCache.set(cacheKey, summary);
     return summary;
   } catch (error) {
-    console.error("Summary generation error:", error.message);
+    console.error("Gemini summary generation error:", String(error));
     return "Failed to generate summary. Please try again later.";
   }
 };

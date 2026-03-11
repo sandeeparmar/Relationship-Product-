@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import fs from 'fs';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const TRANSLATION_TIMEOUT = 10000;

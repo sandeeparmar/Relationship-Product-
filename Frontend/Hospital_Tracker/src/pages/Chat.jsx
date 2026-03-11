@@ -6,6 +6,7 @@ import AudioRecorder from "../components/AudioRecorder";
 import AudioMessage from "../components/AudioMessage";
 import VideoCall from "../components/VideoCall";
 import { AuthContext } from "../context/AuthContext";
+import "./Chat.css";
 
 export default function Chat() {
   const { roomId } = useParams();
@@ -26,15 +27,12 @@ export default function Chat() {
   }, [messages]);
 
   useEffect(() => {
-    console.log("Joining chat room:", roomId);
     socket.emit("joinChatRoom", roomId);
     const handleNewMessage = (msg) => {
-      console.log("Received new message:", msg);
       setMessages((prev) => [...prev, msg]);
     };
     socket.on("newMessage", handleNewMessage);
     socket.on("connect", () => {
-      console.log("Socket connected:", socket.id);
       socket.emit("joinChatRoom", roomId);
     });
     return () => {
@@ -63,7 +61,6 @@ export default function Chat() {
         headers: { "Content-Type": "multipart/form-data" },
       });
     } catch (err) {
-      console.error("Failed to send audio", err);
       alert("Failed to send audio message");
     }
   };
@@ -73,8 +70,7 @@ export default function Chat() {
       const res = await api.post(`/chat/summary/${roomId}`);
       alert("Summary: " + res.data.summary);
     } catch (err) {
-      console.error("Failed to generate summary", err);
-      alert("Failed to generate summary");
+      alert("Failed to generate summary" );
     }
   };
 
@@ -85,12 +81,10 @@ export default function Chat() {
       alert("Consultation Completed!");
       navigate("/doctor");
     } catch (err) {
-      console.error("Failed to complete consultation", err);
       alert("Failed to complete consultation. It might already be completed.");
     }
   };
 
-  /* Call Logic */
   const [inCall, setInCall] = useState(false);
   const [receivingCall, setReceivingCall] = useState(false);
   const [callerName, setCallerName] = useState("");
@@ -126,404 +120,6 @@ export default function Chat() {
 
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap');
-
-        .chat-root {
-          font-family: 'DM Sans', sans-serif;
-          --teal: #0d9488;
-          --teal-light: #14b8a6;
-          --teal-dim: #ccfbf1;
-          --surface: #f8fafc;
-          --surface-card: #ffffff;
-          --border: #e2e8f0;
-          --text-primary: #0f172a;
-          --text-secondary: #64748b;
-          --text-muted: #94a3b8;
-          --me-bubble: #0d9488;
-          --me-bubble-text: #ffffff;
-          --them-bubble: #ffffff;
-          --them-bubble-text: #0f172a;
-          --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-          --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
-          --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
-        }
-
-        .chat-root.dark {
-          --surface: #0f172a;
-          --surface-card: #1e293b;
-          --border: #334155;
-          --text-primary: #f1f5f9;
-          --text-secondary: #94a3b8;
-          --text-muted: #64748b;
-          --them-bubble: #1e293b;
-          --them-bubble-text: #f1f5f9;
-          --teal-dim: #134e4a;
-        }
-
-        .chat-header {
-          padding: 0 1.75rem;
-          height: 4rem;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          background: var(--surface-card);
-          border-bottom: 1px solid var(--border);
-          position: sticky;
-          top: 0;
-          z-index: 10;
-        }
-
-        .chat-header-title {
-          font-family: 'Syne', sans-serif;
-          font-weight: 700;
-          font-size: 1.05rem;
-          color: var(--text-primary);
-          display: flex;
-          align-items: center;
-          gap: 0.6rem;
-        }
-
-        .chat-header-title::before {
-          content: '';
-          display: block;
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: var(--teal-light);
-          box-shadow: 0 0 0 3px var(--teal-dim);
-          animation: pulse-dot 2s infinite;
-        }
-
-        @keyframes pulse-dot {
-          0%, 100% { box-shadow: 0 0 0 3px var(--teal-dim); }
-          50% { box-shadow: 0 0 0 5px var(--teal-dim); }
-        }
-
-        .header-actions {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .btn-call {
-          display: flex;
-          align-items: center;
-          gap: 0.4rem;
-          padding: 0.45rem 0.9rem;
-          border-radius: 8px;
-          border: 1.5px solid transparent;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.8rem;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          letter-spacing: 0.01em;
-        }
-
-        .btn-voice {
-          background: #eff6ff;
-          color: #1d4ed8;
-          border-color: #bfdbfe;
-        }
-        .btn-voice:hover {
-          background: #dbeafe;
-          border-color: #93c5fd;
-        }
-
-        .btn-video {
-          background: #f0fdf4;
-          color: #16a34a;
-          border-color: #bbf7d0;
-        }
-        .btn-video:hover {
-          background: #dcfce7;
-          border-color: #86efac;
-        }
-
-        .btn-summary {
-          background: var(--teal);
-          color: white;
-          border-color: var(--teal);
-          padding: 0.45rem 1rem;
-        }
-        .btn-summary:hover {
-          background: var(--teal-light);
-          border-color: var(--teal-light);
-        }
-
-        .btn-complete {
-          background: #059669; /* emerald-600 */
-          color: white;
-          border-color: #059669;
-          padding: 0.45rem 1rem;
-        }
-        .btn-complete:hover {
-          background: #10b981; /* emerald-500 */
-          border-color: #10b981;
-        }
-
-        .messages-area {
-          flex: 1;
-          overflow-y: auto;
-          padding: 1.5rem 1.75rem;
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-          background: var(--surface);
-        }
-
-        .messages-area::-webkit-scrollbar { width: 4px; }
-        .messages-area::-webkit-scrollbar-track { background: transparent; }
-        .messages-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-        .msg-group {
-          display: flex;
-          flex-direction: column;
-          margin-bottom: 0.75rem;
-        }
-
-        .msg-group.me { align-items: flex-end; }
-        .msg-group.them { align-items: flex-start; }
-
-        .msg-sender {
-          font-size: 0.7rem;
-          font-weight: 500;
-          color: var(--text-muted);
-          margin-bottom: 0.3rem;
-          padding: 0 0.25rem;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .msg-bubble {
-          max-width: min(75%, 480px);
-          padding: 0.65rem 1rem;
-          border-radius: 14px;
-          box-shadow: var(--shadow-sm);
-          position: relative;
-          animation: bubbleIn 0.2s ease;
-        }
-
-        @keyframes bubbleIn {
-          from { opacity: 0; transform: translateY(6px) scale(0.97); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        .msg-group.me .msg-bubble {
-          background: var(--me-bubble);
-          color: var(--me-bubble-text);
-          border-bottom-right-radius: 4px;
-        }
-
-        .msg-group.them .msg-bubble {
-          background: var(--them-bubble);
-          color: var(--them-bubble-text);
-          border-bottom-left-radius: 4px;
-          border: 1px solid var(--border);
-        }
-
-        .msg-text {
-          font-size: 0.875rem;
-          line-height: 1.5;
-        }
-
-        .msg-time {
-          font-size: 0.65rem;
-          margin-top: 0.3rem;
-          text-align: right;
-          opacity: 0.65;
-        }
-
-        .input-area {
-          padding: 1rem 1.75rem;
-          background: var(--surface-card);
-          border-top: 1px solid var(--border);
-        }
-
-        .input-form {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          background: var(--surface);
-          border: 1.5px solid var(--border);
-          border-radius: 14px;
-          padding: 0.5rem 0.6rem 0.5rem 0.75rem;
-          transition: border-color 0.15s;
-        }
-
-        .input-form:focus-within {
-          border-color: var(--teal);
-          box-shadow: 0 0 0 3px rgba(13,148,136,0.1);
-        }
-
-        .msg-input {
-          flex: 1;
-          background: transparent;
-          border: none;
-          outline: none;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.875rem;
-          color: var(--text-primary);
-          min-width: 0;
-        }
-
-        .msg-input::placeholder { color: var(--text-muted); }
-
-        .send-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          border: none;
-          background: var(--teal);
-          color: white;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          flex-shrink: 0;
-        }
-
-        .send-btn:hover:not(:disabled) {
-          background: var(--teal-light);
-          transform: scale(1.05);
-        }
-
-        .send-btn:disabled {
-          background: var(--border);
-          color: var(--text-muted);
-          cursor: not-allowed;
-          transform: none;
-        }
-
-        .incoming-call-banner {
-          position: absolute;
-          top: 5rem;
-          left: 50%;
-          transform: translateX(-50%);
-          background: var(--surface-card);
-          border: 1.5px solid var(--teal-light);
-          border-radius: 16px;
-          padding: 1.25rem 1.75rem;
-          box-shadow: var(--shadow-lg);
-          z-index: 50;
-          min-width: 300px;
-          text-align: center;
-          animation: slideDown 0.25s ease;
-        }
-
-        @keyframes slideDown {
-          from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
-          to { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-
-        .call-pulse-ring {
-          width: 52px;
-          height: 52px;
-          border-radius: 50%;
-          background: var(--teal-dim);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin: 0 auto 0.85rem;
-          position: relative;
-        }
-
-        .call-pulse-ring::before,
-        .call-pulse-ring::after {
-          content: '';
-          position: absolute;
-          inset: -8px;
-          border-radius: 50%;
-          border: 2px solid var(--teal-light);
-          opacity: 0;
-          animation: callRing 1.5s ease-out infinite;
-        }
-
-        .call-pulse-ring::after { animation-delay: 0.5s; }
-
-        @keyframes callRing {
-          0% { opacity: 0.7; transform: scale(0.9); }
-          100% { opacity: 0; transform: scale(1.4); }
-        }
-
-        .call-banner-name {
-          font-family: 'Syne', sans-serif;
-          font-weight: 600;
-          font-size: 1rem;
-          color: var(--text-primary);
-          margin-bottom: 0.25rem;
-        }
-
-        .call-banner-sub {
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-          margin-bottom: 1rem;
-        }
-
-        .call-actions {
-          display: flex;
-          gap: 0.75rem;
-          justify-content: center;
-        }
-
-        .btn-accept {
-          display: flex;
-          align-items: center;
-          gap: 0.4rem;
-          padding: 0.55rem 1.25rem;
-          background: var(--teal);
-          color: white;
-          border: none;
-          border-radius: 10px;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.8rem;
-          font-weight: 500;
-          cursor: pointer;
-          transition: background 0.15s;
-        }
-        .btn-accept:hover { background: var(--teal-light); }
-
-        .btn-reject {
-          display: flex;
-          align-items: center;
-          gap: 0.4rem;
-          padding: 0.55rem 1.25rem;
-          background: #fef2f2;
-          color: #dc2626;
-          border: 1.5px solid #fecaca;
-          border-radius: 10px;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.8rem;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .btn-reject:hover { background: #fee2e2; border-color: #fca5a5; }
-
-        .date-divider {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          margin: 0.5rem 0 1rem;
-        }
-        .date-divider::before, .date-divider::after {
-          content: '';
-          flex: 1;
-          height: 1px;
-          background: var(--border);
-        }
-        .date-divider span {
-          font-size: 0.68rem;
-          color: var(--text-muted);
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          white-space: nowrap;
-        }
-      `}</style>
-
       <div
         className="chat-root flex flex-col relative"
         style={{ height: "calc(100vh - 6rem)" }}

@@ -77,14 +77,14 @@ export const getMessages = async (req, res) => {
 export const sendTextMessage = async (req, res) => {
   try {
     
-    const sender = await User.findById(req.user.id);
+    const [sender, room] = await Promise.all([
+      User.findById(req.user.id),
+      chatRoom.findById(req.body.roomId)
+    ]);
     
     if(!sender){
       return res.status(404).json({message : "Receipnt not found"}) ;
     }
-
-
-    const room = await chatRoom.findById(req.body.roomId);
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
