@@ -25,8 +25,6 @@ export default function Register() {
     e.preventDefault();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const nameRegex = /^[A-Za-z ]+$/;
-    const phoneRegex = /^[6-9]\d{9}$/;
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
     if(!emailRegex.test(formData.email)){
       alert("email must be valid") ;
       return ;
@@ -35,17 +33,8 @@ export default function Register() {
       alert("Name must contain only letters");
       return;
     }
-    if (formData.password.length < 8) {
-      alert("Password must be at least 8 characters");
-      return;
-    }
-    if (!phoneRegex.test(formData.phone)) {
-      alert("Enter a valid phone number");
-      return;
-    }
-    if (!passwordRegex.test(formData.password)) {
-      alert("Password must contain at least 8 characters including letters and numbers");
-    }
+    
+  
 
     setLoading(true);
     setError("");

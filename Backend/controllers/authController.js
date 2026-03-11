@@ -3,25 +3,35 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { Doctor } from "../models/Doctor.js";
 import validator from "validator" ;
+import { sendEmail } from "../services/emailService.js";
 
 export const register = async (req, res) => {
   let { name, email, password, role, phone, preferredLanguage, specialization, consultationTime } = req.body;
-  
-  if (
-  !validator.isEmail(email) ||
-  !validator.isAlpha(name, 'en-US', { ignore: ' ' }) ||
-  !/^[6-9]\d{9}$/.test(phone) ||
-  !validator.isNumeric(consultationTime)
-) {
-  return res.status(400).json({ message: "Fields must be valid" });
-}
-  
+  console.log("damm")  ; 
+
+  // if ( !validator.isEmail(email) || !/^[6-9]\d{9}$/.test(phone) ||
+  //           !validator.isAlpha(name, 'en-US', { ignore: ' ' }) ||
+  //        !validator.isNumeric(consultationTime)
+  //   ) {
+  //     return res.status(400).json({ message: "Fields must be valid" });
+  // }
   const check = await User.findOne({ email });
   
   if (check) {
     return res.status(409).json({ message: "Already Registered this email" });
   }
   
+  try{
+    const token = jwt.sign({email} , process.env.JWT_SECRET , {expiresIn : "5m"}) ;
+  
+    const verificationLink = `http://localhost:5000/verify-email/${token}`;
+  
+    const subject = "Verify Your Email" ;
+    const text = `Hello Mr/Ms. ${name} first u need to confirm your mail .\n Click below to verify your email \n
+      ${verificationLink} Verify Email</a>`  ;
+     await sendEmail(email , subject  ,text ) ;      
+ 
+
   const hashedPassword = await bcrypt.hash(password, 10);
   role = role.toUpperCase();
   
@@ -36,6 +46,11 @@ export const register = async (req, res) => {
   }
   
   res.status(201).json({ message: "User Registered" });
+   }
+  catch(err){
+    console.log(err.message) ;
+    return res.status(400).json({message : "please enter working mail.."}) ;
+  }
 };
 
 export const login = async (req, res) => {

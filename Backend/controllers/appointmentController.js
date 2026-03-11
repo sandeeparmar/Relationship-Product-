@@ -17,7 +17,6 @@ export const bookAppointment = async (req, res) => {
 
   const existingAppointment = await Appointment.findOne({
     patientId: req.user.id,
-    // doctorId, // Removed to ensure only one appointment per day per patient REGARDLESS of doctor
     date,
     status: { $in: ["BOOKED", "IN_PROGRESS", "PENDING"] }
   });
