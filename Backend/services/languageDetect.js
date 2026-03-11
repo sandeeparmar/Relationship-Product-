@@ -26,11 +26,12 @@ const detectLanguageByCharacters = (text) => {
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const DETECTION_TIMEOUT = 5000;
 
-export const detectLanguage = async (text, userPreferredLanguage = "en") => {
+export const detectLanguage = async (text, userPreferredLanguage) => {
   try {
-    if (!text || text.trim().length === 0) return userPreferredLanguage || "en";
+    if (!text || text.trim().length === 0) return userPreferredLanguage;
 
     const charBasedLang = detectLanguageByCharacters(text);
+    
     if (charBasedLang) {
       console.log(`Language detected (character-based): ${charBasedLang}`);
       return charBasedLang;
@@ -73,7 +74,7 @@ export const detectLanguage = async (text, userPreferredLanguage = "en") => {
       } else {
         console.error("Gemini Detection Error Status: ", response.status);
       }
-      return userPreferredLanguage || "en";
+      return userPreferredLanguage ;
     }
 
     const result = await response.json();
@@ -87,10 +88,9 @@ export const detectLanguage = async (text, userPreferredLanguage = "en") => {
       }
     }
 
-    return userPreferredLanguage || "en";
+    return userPreferredLanguage ;
   } catch (error) {
     console.error("Language detection error:", error.message);
-    // Use user's preferred language on any error
-    return userPreferredLanguage || "en";
+    return userPreferredLanguage ;
   }
 };

@@ -97,6 +97,14 @@ export default function IDMPanel({ patientId, patientName, role = "DOCTOR" }) {
                         <FaFileExport className="mr-1" /> Export ODM
                     </button>
                 )}
+                {role === "PATIENT" && (
+                    <button
+                        onClick={handleExportODM}
+                        className="text-sm bg-teal-600 hover:bg-teal-700 text-white px-3 py-1 rounded flex items-center"
+                    >
+                        <FaFileExport className="mr-1" /> Download My ODM
+                    </button>
+                )}
             </div>
 
             {/* Programs Section */}

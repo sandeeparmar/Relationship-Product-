@@ -9,19 +9,56 @@ import { ConversationSummary } from "../models/ConversationSummary.js";
 
 
 export const createRoom = async (req, res) => {
-  const { doctorId, patientId } = req.body;
-  let room = await chatRoom.findOne({ doctorId, patientId });
-  if (!room) {
-    room = await chatRoom.create({ doctorId, patientId });
+  try {
+    const { doctorId, patientId } = req.body;
+
+    if (!doctorId || !patientId) {
+      return res.status(400).json({ message: "doctorId and patientId are required" });
+    }
+
+    // Only allow participants (doctor or patient) to create/access their own room
+    const requesterId = req.user.id;
+    const isParticipant =
+      String(requesterId) === String(doctorId) ||
+      String(requesterId) === String(patientId);
+
+    if (!isParticipant && req.user.role !== "ADMIN") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    let room = await chatRoom.findOne({ doctorId, patientId });
+    if (!room) {
+      room = await chatRoom.create({ doctorId, patientId });
+    }
+    res.json(room);
+  } catch (err) {
+    console.error("Error creating room:", err);
+    res.status(500).json({ message: "Failed to create room" });
   }
-  res.json(room);
 };
 
 export const getMessages = async (req, res) => {
   try {
+    const room = await chatRoom.findById(req.params.roomId);
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const requesterId = req.user.id;
+    const isParticipant =
+      String(requesterId) === String(room.doctorId) ||
+      String(requesterId) === String(room.patientId);
+
+    if (!isParticipant && req.user.role !== "ADMIN") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const messages = await Message.find({
       roomId: req.params.roomId
-    }).sort("createdAt").populate("senderId", "name email");
+    })
+      .sort("createdAt")
+      .populate("senderId", "name email");
 
     // Decrypt messages before sending to frontend
     const decryptedMessages = messages.map(msg => ({
@@ -39,15 +76,33 @@ export const getMessages = async (req, res) => {
 
 export const sendTextMessage = async (req, res) => {
   try {
+    
     const sender = await User.findById(req.user.id);
+    
+    if(!sender){
+      return res.status(404).json({message : "Receipnt not found"}) ;
+    }
+
+
     const room = await chatRoom.findById(req.body.roomId);
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
     }
 
+    const requesterId = req.user.id;
+    const isParticipant =
+      String(requesterId) === String(room.doctorId) ||
+      String(requesterId) === String(room.patientId);
+
+    if (!isParticipant && req.user.role !== "ADMIN") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // sender._id === doctorId both match then patient will be receiver otherwise doctor will be receiver .
     const receiverId = String(room.doctorId) === String(sender._id) ? room.patientId : room.doctorId;
-    const receiver = await User.findById(receiverId);
+    
+    const receiver = await User.findById(receiverId); 
 
     // Use sender's preferred language as fallback for detection
     const senderPreferredLang = sender?.preferredLanguage || "en";
@@ -95,6 +150,21 @@ export const sendTextMessage = async (req, res) => {
 
 export const sendAudioMessage = async (req, res) => {
   try {
+    const room = await chatRoom.findById(req.body.roomId);
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const requesterId = req.user.id;
+    const isParticipant =
+      String(requesterId) === String(room.doctorId) ||
+      String(requesterId) === String(room.patientId);
+
+    if (!isParticipant && req.user.role !== "ADMIN") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const message = await Message.create({
       roomId: req.body.roomId,
       senderId: req.user.id,
@@ -116,6 +186,21 @@ export const sendAudioMessage = async (req, res) => {
 
 export const getConversationHistory = async (req, res) => {
   try {
+    const room = await chatRoom.findById(req.params.roomId);
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const requesterId = req.user.id;
+    const isParticipant =
+      String(requesterId) === String(room.doctorId) ||
+      String(requesterId) === String(room.patientId);
+
+    if (!isParticipant && req.user.role !== "ADMIN") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const messages = await Message.find({
       roomId: req.params.roomId
     }).sort({ createdAt: 1 });
@@ -141,6 +226,15 @@ export const generateConversationSummary = async (req, res) => {
       return res.status(404).json({ message: "Room not found" });
     }
 
+    const requesterId = req.user.id;
+    const isParticipant =
+      String(requesterId) === String(room.doctorId) ||
+      String(requesterId) === String(room.patientId);
+
+    if (!isParticipant && req.user.role !== "ADMIN") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const messages = await Message.find({
       roomId: room._id
     }).sort({ createdAt: 1 });
@@ -155,6 +249,8 @@ export const generateConversationSummary = async (req, res) => {
 
     await ConversationSummary.create({
       roomId: room._id,
+      patientId: room.patientId,
+      doctorId: room.doctorId,
       summary
     });
 
