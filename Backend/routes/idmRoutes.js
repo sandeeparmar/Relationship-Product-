@@ -1,5 +1,5 @@
 import express from "express";
-import { verifyToken as protect } from "../middleware/authMiddleware.js"; 
+import { verifyToken } from "../middleware/authMiddleware.js"; 
 import {
     createProgram,
     getPatientPrograms,
@@ -10,11 +10,14 @@ import {
 
 const router = express.Router();
 
-router.post("/programs", protect, createProgram);
-router.get("/programs/:patientId", protect, getPatientPrograms);
-router.put("/programs/:id", protect, updateProgram);
+router.post("/programs", verifyToken, createProgram);
 
-router.post("/metrics", protect, addMetric);
-router.get("/metrics/:patientId", protect, getPatientMetrics);
+router.get("/programs/:patientId", verifyToken, getPatientPrograms);
+
+router.put("/programs/:id", verifyToken, updateProgram);
+
+router.post("/metrics", verifyToken, addMetric);
+
+router.get("/metrics/:patientId", verifyToken, getPatientMetrics);
 
 export default router;
