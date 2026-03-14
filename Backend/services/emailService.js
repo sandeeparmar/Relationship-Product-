@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com', 
+    host: process.env.host , 
     port: process.env.SEND_EMAIL_PORTNUMBER,
     secure: true,
     auth: {
@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
 export const sendEmail = async (to, subject, text, html) => {
     try {
         const info = await transporter.sendMail({
-            from: `"Notification from Telemedicine Platform" <${process.env.SEND_EMAIL_USERNAME}>`, 
+            from: `"MediConnect : " <${process.env.SEND_EMAIL_USERNAME}>`, 
             to, 
             subject, 
             text, 
